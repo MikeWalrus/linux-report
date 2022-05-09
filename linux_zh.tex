@@ -1,0 +1,135 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{ctex}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{longtable}
+\usepackage{wrapfig}
+\usepackage{rotating}
+\usepackage[normalem]{ulem}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{capt-of}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+	  citecolor=black,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+    pdftitle={Overleaf Example},
+    pdfpagemode=FullScreen,
+    }
+\usepackage{listings}
+\usepackage{footmisc}
+\usepackage{biblatex}
+\usepackage[most]{tcolorbox}
+\newtcolorbox{notebox}[0]{colback=yellow!5!white,
+colframe=yellow!75!black,fonttitle=\bfseries,
+title={Note}}
+\newtcolorbox{qbox}[1]{colback=blue!5!white,
+colframe=blue!75!black,fonttitle=\bfseries,
+title={小问题：#1}}
+\newtcolorbox{readsrcbox}[1]{colback=green!5!white,
+colframe=green!75!black,fonttitle=\bfseries,
+title={读源码：#1}}
+
+\addbibresource{bib.bib}
+\date{\today}
+\title{操作系统案例分析}
+\begin{document}
+\lstset{
+	breaklines=true,
+	basicstyle=\ttfamily}
+\title{OS Case Study}
+
+\maketitle
+\tableofcontents
+
+\newpage
+
+\section{历史}
+\subsection{Linux 内核的历史}
+Linux内核最初是1991年，当时的赫尔辛基大学本科生Linus Torvalds出于兴趣为自己的386计算机编写的，开发使用的操作系统是教学用的Minix、编译器为GNU的GCC.
+当时的背景是这样的：自由软件运动的GNU项目运转了近十年，且取得了很大的进展，GCC作为自由的编译器已经相当成功，其他用户态的工具都比较完善，但是内核项目仍处于早期阶段.
+在此之前，Unix于1970年发布，它的成功使得学界和商业界都乐于借鉴其模式和思想.
+因此作为一本操作系统教材的配套实现，Minix部分使用了Unix的理念，而GNU也把开发出与Unix兼容的自由操作系统为目标.
+Linux 0.1版本发布后，世界上许多开发者对Linus的操作系统很感兴趣，他们加入了Linux的内核的开发，并将一些GNU系统的组件移植到Linux内核，最终使之成为GNU系统事实上的内核.
+
+1992年Linus将Linux 0.99 在GNU General Public License 下发布，Linux正式成为自由软件.
+
+2000年左右，在以著名的论文The Cathedral and the Bazaar为代表的开源运动的影响下，Linux作为开源软件的开发模式开始得到许多公司的重视.
+许多硬件和软件公司在这时都开始为Linux提供支持，并加入Linux内核的开发.
+
+如今（2020s）绝大多数互联网服务器运行Linux 发行版\cite{OSUsageT34:online}，Linux内核也广泛用于嵌入式设备和智能手机.
+作为成熟的可移植的自由类Unix内核，Linux既成为了开源运动的成功范例又为自由软件运动作出了突出的贡献.
+\subsection{发行版Arch Linux}
+Arch Linux 是程序员兼吉他手Judd Vinet在2002年创建的一个滚动发行的Linux发行版.
+其主要特点在于拥有可以自动管理依赖的包管理器pacman和受FreeBSD启发的包构建系统\cite{DistroWa81:online}.
+由于Arch Linux上构建和分享软件包非常简单，Arch Linux用户可以使用的软件包非常丰富.
+其简易性和以用户为中心\cite{ArchLinux15:online} 的优点使其成为滚动发行模式的代表和最受桌面用户欢迎的Linux发行版之一.
+
+Arch Linux用户可以选择和配置自己的Linux内核，一般使用的是最新的stable分支上的普通的Linux内核.
+\begin{notebox}
+	由于发行版的内核可以自己配置，发行版的区别对于本案例分析的影响不大，后文的分析将不太涉及发行版之间的区别.
+\end{notebox}
+\section{Linux内核的架构}
+Linux是宏内核，即整个内核是一个共用地址空间的二进制程序.
+宏内核架构是相对于微内核而言的.
+微内核架构基于消息传递，作为内核的二进制程序只有最基本的功能，其他的不同组件处于不同的地址空间，它们之间通过消息传递的方式来进行交互.
+Linux内核采用宏内核的架构主要是出于性能方面的考虑.\cite{silberschatz2021operating}
+同一地址空间的各个部分可以直接相互调用，没有消息传递的开销.
+
+宏内核的架构不代表Linux内核不能采用模块化的设计，这得益于动态链接技术.
+Linux内核由常驻内存的内核镜像\lstinline{vmlinux}和动态加载的各种模块构成.
+使用运行时加载的模块的好处有很多.
+首先，这些模块在加载后就处于核心态，可以调用内核中的任何代码，访问硬件也没有限制，这可以使内核的设计者适度地划分各个功能之间的界限——避免功能之间耦合度过高的同时也不必在不同部分之间使用复杂的交互方法.
+其次，动态加载模块可以在操作系统运行时更改内核，这对内核的开发有好处，因为不用编译整个内核并重启系统.
+这也对节约资源有好处，因为可以只按需要加载内核模块，减少内存占用.
+
+\begin{qbox}{为什么叫“镜像”？}
+	\lstinline{vmlinux} 被称为内核“镜像”（kernel image），是因为这个文件在加载操作系统时被用来在内存中创建内核的副本.
+	详见Image一词的含义\cite{imageWik70:online}.
+\end{qbox}
+
+要了解Linux如何实现模块化的宏内核架构，我们在案例分析中重点介绍两方面的内容：内核模块是如何构建的、内核模块是如何加载的.
+
+\subsection{内核构建系统}
+\begin{readsrcbox}{Kernel Build System}
+	内核的构建系统有关的文档在 \href{https://docs.kernel.org/kbuild/index.html}{\lstinline{Documentation/kbuild}} 目录.
+
+\end{readsrcbox}
+\section{Process Management}
+\lstinline{struct task_struct}\footnote{Defined in \lstinline{include/linux/sched.h}.\label{sched.h}} is the Process Control Block (PCB) in the Linux kernel.
+It stores the identifiers of a process, its current state, pointers to data structures related to the context of process, scheduling information and information about the resources associated with the process.
+All process-related operations either directly or indirectly read or modify the PCB to achieve their goals.
+
+These are some of the states that a process might be in\footref{sched.h} :
+\begin{itemize}
+	\item \lstinline{TASK_NEW}.
+	      When a process is first created, its state is set to \lstinline{TASK_NEW}, indicating that the process has been created but not yet started.
+	\item \lstinline{TASK_DEAD}.
+	      The process has terminated.
+	\item \lstinline{TASK_RUNNING}.
+	\item \lstinline{TASK_INTERRUPTIBLE} or \lstinline{TASK_UNINTERRUPTIBLE}.
+	      The processes in these two states are waiting for something to wake them up, but signals can only interrupt the processes marked \lstinline{TASK_INTERRUPTIBLE}.
+	\item \lstinline{TASK_WAKING}.
+	      This indicates that the process has already been asked to wake up, but not yet added to the run queue. \footnote{\url{https://lore.kernel.org/lkml/tip-e9c8431185d6c406887190519f6dbdd112641686@git.kernel.org/}}
+	\item \lstinline{TASK_NOLOAD}.
+	      Like \lstinline{TASK_UNINTERUPTIBLE} but processes marked with this do not count when calculating loadavg.\footnote{\url{https://lore.kernel.org/lkml/alpine.LFD.2.11.1505112154420.1749@ja.home.ssi.bg/T/}}
+	\item \lstinline{TASK_WAKEKILL}.
+	      Will wake up when received a SIGKILL.
+	\item \lstinline{TASK_TRACED}.
+	      The process has been stopped by a debugger to trace its execution.
+\end{itemize}
+These states encoded as a bitmask are used to manipulate the \lstinline{unsigned int __state} field of \lstinline{task_struct}, therefore to identify a process' state, the scheduling code checks whether \lstinline{(t->__state & TASK_SOMESTATE)} equals 0 or uses similar logic.
+Combining some of these states gives several more convenient masks, making state-related code more concise.
+
+Scheduling information is also included in the PCB, including priority of the process, schedule entity that represents the process and a pointer to the schedule class that this process is using.
+
+\printbibliography[heading=bibintoc]
+
+\newpage
+
+\end{document}
