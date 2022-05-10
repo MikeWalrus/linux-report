@@ -99,7 +99,20 @@ Linux内核由常驻内存的内核镜像\lstinline{vmlinux}和动态加载的�
 \begin{readsrcbox}{Kernel Build System}
 	内核的构建系统有关的文档在 \href{https://docs.kernel.org/kbuild/index.html}{\lstinline{Documentation/kbuild}} 目录.
 
+	可以参考顶层目录的\lstinline{Makefile}，各个目录下的\lstinline{Makefile}、\lstinline{Kbuild}.
+	另外，\lstinline{script}目录下有用来链接 \lstinline{vmlinux}和有关构建模块的脚本.
 \end{readsrcbox}
+\begin{qbox}{如何找到某个子系统的有关文件和信息？}
+	\lstinline{Maintainer} 文件中列出了Linux内核各个子系统的维护者，同时它还包括有关项目的网页和涉及的文件等有用的信息.
+\end{qbox}
+Linux内核的构建系统是一套基于GNU Make的递归式的构建系统，包括各个目录下的Makefile和为这些Makefile提供基础设施支持的其他文件，通常称为 \lstinline{kbuild}. \cite{LinuxKer71:online}
+
+整个内核构建系统的目标主要就是内核镜像 \lstinline{vmlinux} 和可加载的模块.
+各个Kbuild Makefile以向 \lstinline{obj-m} 和 \lstinline{obj-y} 变量增加内容的方式列出本目录应该构建的目标，
+其中 \lstinline{obj-m} 变量中定义的目标会被构建成内核模块，而 \lstinline{obj-y} 变量中定义的目标会被 \lstinline{$(AR)}\footnote{一般就是GNU Binutils里面的ar，用于把多个 \lstinline{.o} 目标文件归档到一个文件中.} 合并到一个名为 \lstinline{built-in.a} 的库中，最后被链接进 \lstinline{vmlinux}.
+顶层目录的Makefile递归地构建子目录.
+
+
 \section{Process Management}
 \lstinline{struct task_struct}\footnote{Defined in \lstinline{include/linux/sched.h}.\label{sched.h}} is the Process Control Block (PCB) in the Linux kernel.
 It stores the identifiers of a process, its current state, pointers to data structures related to the context of process, scheduling information and information about the resources associated with the process.
