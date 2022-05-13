@@ -21,7 +21,31 @@
     pdftitle={Overleaf Example},
     pdfpagemode=FullScreen,
     }
+\usepackage{xcolor}
 \usepackage{listings}
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\footnotesize,
+    breakatwhitespace=false,
+    breaklines=true,
+    captionpos=b,
+    keepspaces=true,
+    numbers=left,
+    numbersep=5pt,
+    showspaces=false,
+    showstringspaces=false,
+    showtabs=false,
+    tabsize=2
+}
+\lstset{style=mystyle}
 \usepackage{footmisc}
 \usepackage{biblatex}
 \usepackage[most]{tcolorbox}
@@ -109,9 +133,17 @@ Linux内核的构建系统是一套基于GNU Make的递归式的构建系统，�
 
 整个内核构建系统的目标主要就是内核镜像 \lstinline{vmlinux} 和可加载的模块.
 各个Kbuild Makefile以向 \lstinline{obj-m} 和 \lstinline{obj-y} 变量增加内容的方式列出本目录应该构建的目标，
-其中 \lstinline{obj-m} 变量中定义的目标会被构建成内核模块，而 \lstinline{obj-y} 变量中定义的目标会被 \lstinline{$(AR)}\footnote{一般就是GNU Binutils里面的ar，用于把多个 \lstinline{.o} 目标文件归档到一个文件中.} 合并到一个名为 \lstinline{built-in.a} 的库中，最后被链接进 \lstinline{vmlinux}.
+其中 \lstinline{obj-m} 变量中定义的目标会被构建成内核模块——后缀名为 \lstinline{.ko} 的一种ELF文件，而 \lstinline{obj-y} 变量中定义的目标会被 \lstinline{$(AR)}\footnote{一般就是GNU Binutils里面的ar，用于把多个 \lstinline{.o} 目标文件归档到一个文件中.} 合并到一个名为 \lstinline{built-in.a} 的库中，最后被链接进 \lstinline{vmlinux}.
 顶层目录的Makefile递归地构建子目录.
 
+有趣的是，内核的各个部分通常既可以编译到内核镜像中，也可以编译成可加载的内核模块，这是由目标是加入到 \lstinline{obj-m} 还是 \lstinline{obj-y} 来决定的.
+例如Listing \ref{lst:obj-config}所示，当 \lstinline{CONFIG_BTRFS_FS}的值为y（Yes）时，BTRFS文件系统驱动——目标 \lstinline{btrfs.o}将作为内核内置的一部分编译；
+而\lstinline{CONFIG_BTRFS_FS}的值为m（Module）时，它将编译成可加载的内核模块.
+
+\begin{lstlisting}[language=make, caption=可配置的编译目标, label=lst:obj-config]
+# fs/btrfs/Makefile
+obj-$(CONFIG_BTRFS_FS) := btrfs.o
+\end{lstlisting}
 
 \section{Process Management}
 \lstinline{struct task_struct}\footnote{Defined in \lstinline{include/linux/sched.h}.\label{sched.h}} is the Process Control Block (PCB) in the Linux kernel.
