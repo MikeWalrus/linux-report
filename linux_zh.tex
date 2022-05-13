@@ -98,52 +98,8 @@ Arch Linux用户可以选择和配置自己的Linux内核，一般使用的是�
 \begin{notebox}
 	由于发行版的内核可以自己配置，发行版的区别对于本案例分析的影响不大，后文的分析将不太涉及发行版之间的区别.
 \end{notebox}
-\section{Linux内核的架构}
-Linux是宏内核，即整个内核是一个共用地址空间的二进制程序.
-宏内核架构是相对于微内核而言的.
-微内核架构基于消息传递，作为内核的二进制程序只有最基本的功能，其他的不同组件处于不同的地址空间，它们之间通过消息传递的方式来进行交互.
-Linux内核采用宏内核的架构主要是出于性能方面的考虑.\cite{silberschatz2021operating}
-同一地址空间的各个部分可以直接相互调用，没有消息传递的开销.
 
-宏内核的架构不代表Linux内核不能采用模块化的设计，这得益于动态链接技术.
-Linux内核由常驻内存的内核镜像\lstinline{vmlinux}和动态加载的各种模块构成.
-使用运行时加载的模块的好处有很多.
-首先，这些模块在加载后就处于核心态，可以调用内核中的任何代码，访问硬件也没有限制，这可以使内核的设计者适度地划分各个功能之间的界限——避免功能之间耦合度过高的同时也不必在不同部分之间使用复杂的交互方法.
-其次，动态加载模块可以在操作系统运行时更改内核，这对内核的开发有好处，因为不用编译整个内核并重启系统.
-这也对节约资源有好处，因为可以只按需要加载内核模块，减少内存占用.
-
-\begin{qbox}{为什么叫“镜像”？}
-	\lstinline{vmlinux} 被称为内核“镜像”（kernel image），是因为这个文件在加载操作系统时被用来在内存中创建内核的副本.
-	详见Image一词的含义\cite{imageWik70:online}.
-\end{qbox}
-
-要了解Linux如何实现模块化的宏内核架构，我们在案例分析中重点介绍两方面的内容：内核模块是如何构建的、内核模块是如何加载的.
-
-\subsection{内核构建系统}
-\begin{readsrcbox}{Kernel Build System}
-	内核的构建系统有关的文档在 \href{https://docs.kernel.org/kbuild/index.html}{\lstinline{Documentation/kbuild}} 目录.
-
-	可以参考顶层目录的\lstinline{Makefile}，各个目录下的\lstinline{Makefile}、\lstinline{Kbuild}.
-	另外，\lstinline{script}目录下有用来链接 \lstinline{vmlinux}和有关构建模块的脚本.
-\end{readsrcbox}
-\begin{qbox}{如何找到某个子系统的有关文件和信息？}
-	\lstinline{Maintainer} 文件中列出了Linux内核各个子系统的维护者，同时它还包括有关项目的网页和涉及的文件等有用的信息.
-\end{qbox}
-Linux内核的构建系统是一套基于GNU Make的递归式的构建系统，包括各个目录下的Makefile和为这些Makefile提供基础设施支持的其他文件，通常称为 \lstinline{kbuild}. \cite{LinuxKer71:online}
-
-整个内核构建系统的目标主要就是内核镜像 \lstinline{vmlinux} 和可加载的模块.
-各个Kbuild Makefile以向 \lstinline{obj-m} 和 \lstinline{obj-y} 变量增加内容的方式列出本目录应该构建的目标，
-其中 \lstinline{obj-m} 变量中定义的目标会被构建成内核模块——后缀名为 \lstinline{.ko} 的一种ELF文件，而 \lstinline{obj-y} 变量中定义的目标会被 \lstinline{$(AR)}\footnote{一般就是GNU Binutils里面的ar，用于把多个 \lstinline{.o} 目标文件归档到一个文件中.} 合并到一个名为 \lstinline{built-in.a} 的库中，最后被链接进 \lstinline{vmlinux}.
-顶层目录的Makefile递归地构建子目录.
-
-有趣的是，内核的各个部分通常既可以编译到内核镜像中，也可以编译成可加载的内核模块，这是由目标是加入到 \lstinline{obj-m} 还是 \lstinline{obj-y} 来决定的.
-例如Listing \ref{lst:obj-config}所示，当 \lstinline{CONFIG_BTRFS_FS}的值为y（Yes）时，BTRFS文件系统驱动——目标 \lstinline{btrfs.o}将作为内核内置的一部分编译；
-而\lstinline{CONFIG_BTRFS_FS}的值为m（Module）时，它将编译成可加载的内核模块.
-
-\begin{lstlisting}[language=make, caption=可配置的编译目标, label=lst:obj-config]
-# fs/btrfs/Makefile
-obj-$(CONFIG_BTRFS_FS) := btrfs.o
-\end{lstlisting}
+\include{module_zh.tex}
 
 \section{Process Management}
 \lstinline{struct task_struct}\footnote{Defined in \lstinline{include/linux/sched.h}.\label{sched.h}} is the Process Control Block (PCB) in the Linux kernel.
