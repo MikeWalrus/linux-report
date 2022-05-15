@@ -101,33 +101,7 @@ Arch Linux用户可以选择和配置自己的Linux内核，一般使用的是�
 
 \include{module_zh.tex}
 
-\section{Process Management}
-\lstinline{struct task_struct}\footnote{Defined in \lstinline{include/linux/sched.h}.\label{sched.h}} is the Process Control Block (PCB) in the Linux kernel.
-It stores the identifiers of a process, its current state, pointers to data structures related to the context of process, scheduling information and information about the resources associated with the process.
-All process-related operations either directly or indirectly read or modify the PCB to achieve their goals.
-
-These are some of the states that a process might be in\footref{sched.h} :
-\begin{itemize}
-	\item \lstinline{TASK_NEW}.
-	      When a process is first created, its state is set to \lstinline{TASK_NEW}, indicating that the process has been created but not yet started.
-	\item \lstinline{TASK_DEAD}.
-	      The process has terminated.
-	\item \lstinline{TASK_RUNNING}.
-	\item \lstinline{TASK_INTERRUPTIBLE} or \lstinline{TASK_UNINTERRUPTIBLE}.
-	      The processes in these two states are waiting for something to wake them up, but signals can only interrupt the processes marked \lstinline{TASK_INTERRUPTIBLE}.
-	\item \lstinline{TASK_WAKING}.
-	      This indicates that the process has already been asked to wake up, but not yet added to the run queue. \footnote{\url{https://lore.kernel.org/lkml/tip-e9c8431185d6c406887190519f6dbdd112641686@git.kernel.org/}}
-	\item \lstinline{TASK_NOLOAD}.
-	      Like \lstinline{TASK_UNINTERUPTIBLE} but processes marked with this do not count when calculating loadavg.\footnote{\url{https://lore.kernel.org/lkml/alpine.LFD.2.11.1505112154420.1749@ja.home.ssi.bg/T/}}
-	\item \lstinline{TASK_WAKEKILL}.
-	      Will wake up when received a SIGKILL.
-	\item \lstinline{TASK_TRACED}.
-	      The process has been stopped by a debugger to trace its execution.
-\end{itemize}
-These states encoded as a bitmask are used to manipulate the \lstinline{unsigned int __state} field of \lstinline{task_struct}, therefore to identify a process' state, the scheduling code checks whether \lstinline{(t->__state & TASK_SOMESTATE)} equals 0 or uses similar logic.
-Combining some of these states gives several more convenient masks, making state-related code more concise.
-
-Scheduling information is also included in the PCB, including priority of the process, schedule entity that represents the process and a pointer to the schedule class that this process is using.
+\include{task_zh.tex}
 
 \printbibliography[heading=bibintoc]
 

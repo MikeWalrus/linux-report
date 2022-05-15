@@ -1,0 +1,61 @@
+\section{进程管理}
+
+\lstinline{struct task_struct} 是Linux内核的进程控制块（PCB）.
+它存储进程的标识符、进程的状态、指向存储进程上下文的数据结构的指针、调度所需的信息以及与进程相关的资源和指向其他 \lstinline{task_struct} 的指针等.
+所有与进程有关的操作都会直接或间接地修改进程控制块来达到目的.
+下面，我们介绍管理进程所需要的多种信息，并介绍它们是如何在 \lstinline{task_struct} 中表示的.
+
+\begin{readsrcbox}{进程控制块}
+	\lstinline{struct task_struct} 是在\lstinline{include/linux/sched.h}中定义的.
+\end{readsrcbox}
+
+首先是进程的状态，一个进程可能处于这些状态：
+\begin{itemize}
+	\item \lstinline{TASK_NEW}.
+	      当一个进程刚创建时，它的状态就被设置为\lstinline{TASK_NEW}，表示这个进程已经被创建，但是还没有开始运行.
+	\item \lstinline{TASK_DEAD}.
+	      进程已经结束.
+	\item \lstinline{TASK_RUNNING}.
+	      进程正在运行，即该进程在正在运行的进程的队列里.
+	\item \lstinline{TASK_INTERRUPTIBLE} 或者 \lstinline{TASK_UNINTERRUPTIBLE}.
+	      处于这两个状态的进程正在等待，但是只有 \lstinline{TASK_INTERRUPTIBLE} 状态的进程才会被信号唤醒.
+	\item \lstinline{TASK_NOLOAD}.
+	      类似 \lstinline{TASK_UNINTERUPTIBLE} 但是在统计数据中不被计入负载.
+	      \footnote{\url{https://lore.kernel.org/lkml/alpine.LFD.2.11.1505112154420.1749@ja.home.ssi.bg/T/}}
+	\item \lstinline{TASK_WAKING}.
+	      进程已经被要求唤醒，但是还没有进入正在运行的进程队列.
+	      \footnote{\url{https://lore.kernel.org/lkml/tip-e9c8431185d6c406887190519f6dbdd112641686@git.kernel.org/}}
+	\item \lstinline{TASK_WAKEKILL}.
+	      该进程收到SIGKILL信号时会被唤醒.
+	\item \lstinline{TASK_TRACED}.
+	      调试器暂停该进程来追踪它的运行状态.
+\end{itemize}
+这些状态被编码成掩码，读写进程的状态时，
+需要用这些掩码操作 \lstinline{task_struct} 的 \lstinline{__state} 域.
+比如识别一个进程是否处于某状态，
+就要用它的 \lstinline{__state} 和 这个状态的掩码做与操作，
+若结果为0则不处于这个状态.
+这些状态中有的状态可以组合成新的掩码，方便使用.
+
+进程控制块还需要存储有关进程上下文的信息，例如有关栈和堆的信息和CPU内部寄存器的值.
+这一部分信息既和内核的内存管理有关又依赖于具体的硬件架构.
+\begin{readsrcbox}{架构相关代码}
+	为了提高可移植性，Linux内核的代码区分不依赖于具体硬件架构的代码和针对特定架构的代码.
+	架构相关的代码全部在 \lstinline{arch} 目录下.
+	例如 x86和x86\_64的代码位于 \lstinline{arch/x86}.
+
+	显然，所有的汇编代码都应该放在该目录.
+	内存管理和进程管理所需的某些功能也依赖于CPU的特定功能，
+	需要根据硬件功能定义数据结构和执行具体的指令，
+	这些定义和实现也位于 \lstinline{arch} 下具体架构的目录下.
+	不同的架构的代码尽量暴露出相同的接口，供架构无关代码使用.
+
+	某一架构上的具体实现的文档可以在 \href{https://docs.kernel.org/arch.html}{\lstinline{Document/arch.rst}} 中的列表找到.
+	例如\href{https://docs.kernel.org/x86/kernel-stacks.html}{\lstinline{Document/x86/kernel-stacks.rst}}介绍了x86\_64 CPU上内核为每一个进程维护的若干个栈.
+\end{readsrcbox}
+\lstinline{task_struct}的定义中，状态后面最先出现的是一个 \lstinline{void *stack;} 域.
+这不是该进程的用户态的栈的起始地址，
+而是该进程的内核栈，每次该进程通过系统调用进入内核态时，
+内核中的代码都在这个内核栈上执行.
+
+Scheduling information is also included in the PCB, including priority of the process, schedule entity that represents the process and a pointer to the schedule class that this process is using.
