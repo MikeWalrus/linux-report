@@ -1,5 +1,6 @@
 \section{进程管理}
 
+\subsection{进程控制块}
 \lstinline{struct task_struct} 是Linux内核的进程控制块（PCB）.
 它存储进程的标识符、进程的状态、指向存储进程上下文的数据结构的指针、调度所需的信息以及与进程相关的资源和指向其他 \lstinline{task_struct} 的指针等.
 所有与进程有关的操作都会直接或间接地修改进程控制块来达到目的.
@@ -9,6 +10,7 @@
 	\lstinline{struct task_struct} 是在\lstinline{include/linux/sched.h}中定义的.
 \end{readsrcbox}
 
+\subsubsection{进程的状态}
 首先是进程的状态，一个进程可能处于这些状态：
 \begin{itemize}
 	\item \lstinline{TASK_NEW}.
@@ -37,8 +39,10 @@
 若结果为0则不处于这个状态.
 这些状态中有的状态可以组合成新的掩码，方便使用.
 
+\subsubsection{进程的上下文}
 进程控制块还需要存储有关进程上下文的信息，例如有关栈和堆的信息和CPU内部寄存器的值.
-这一部分信息既和内核的内存管理有关又依赖于具体的硬件架构.
+这一部分信息既和内核的内存管理有关又依赖于具体的硬件架构，
+是实现进程调度中挂起和重启进程所需要的数据结构.
 \begin{readsrcbox}{架构相关代码}
 	为了提高可移植性，Linux内核的代码区分不依赖于具体硬件架构的代码和针对特定架构的代码.
 	架构相关的代码全部在 \lstinline{arch} 目录下.
@@ -53,9 +57,67 @@
 	某一架构上的具体实现的文档可以在 \href{https://docs.kernel.org/arch.html}{\lstinline{Document/arch.rst}} 中的列表找到.
 	例如\href{https://docs.kernel.org/x86/kernel-stacks.html}{\lstinline{Document/x86/kernel-stacks.rst}}介绍了x86\_64 CPU上内核为每一个进程维护的若干个栈.
 \end{readsrcbox}
-\lstinline{task_struct}的定义中，状态后面最先出现的是一个 \lstinline{void *stack;} 域.
+\lstinline{task_struct}的定义中，有一个 \lstinline{void *stack;} 域.
 这不是该进程的用户态的栈的起始地址，
-而是该进程的内核栈，每次该进程通过系统调用进入内核态时，
+而是该进程的\textbf{内核栈}的起始地址，每次该进程通过系统调用从用户态进入内核态时，
 内核中的代码都在这个内核栈上执行.
+
+\lstinline{tast_struct}的最后一个成员是 \lstinline{struct thread_struct thread;}，
+进程在CPU上的运行状态存放在这个架构相关的结构体中.
+x86\_64上该结构体的大小可以变化，因此它必须作为\lstinline{tast_struct}的最后一个成员.
+这个 \lstinline{struct thread_struct} 的成员直接或间接地保存该进程的上下文.
+
+我们在微机原理中学过x86\_32架构对于上下文切换有专门的硬件支持.
+Global Descriptor Table（GDT）中有专门的描述符指向Task State Segment（TSS）.
+TSS可以用来存储所有的x86寄存器，
+在需要时自动进行硬件上下文切换，把寄存器的值存储在旧的TSS中，然后把新TSS的内容加载到寄存器中.
+x86\_64取消了硬件上下文切换的功能，但即使是在32位x86机器上，
+Linux内核也不是用TSS来进行硬件切换，
+因为考虑到其它架构几乎都不支持这一机制，使用软件实现上下文切换可移植性更好.
+
+Linux 内核在上下文切换时，寄存器的值实际上是存在进程的内核栈上的.
+进程在切换之前，一定正在该进程的内核栈上执行内核态的代码，
+这时用户程序的寄存器已经在进入内核态后保存下来了，
+要保存运行在内核态时的寄存器，只需要 \lstinline{pushq} 所有的\textit{被调用者保存}寄存器即可.
+这是因为在进入当前栈帧前后，调用者一定已经保存了其所需的\textit{调用者保存}寄存器.
+返回地址也在栈帧中有记录.
+既然这个栈帧就记录着当前进程的上下文，PCB只需保存这个栈帧的地址即可.
+因此 \lstinline{thread_struct} 有一个 \lstinline{unsigned long sp;} 域，
+存放的就是切换前的寄存器sp的值，即这个栈帧的地址.
+
+除了整数运算的寄存器，浮点和向量运算的寄存器也需要保存，
+但是由于浮点和向量运算不像整数运算那样常见，
+且保存这些状态有一定开销，
+所以Linux内核只在这些运算真正执行过时才保存对应的寄存器.
+这种“懒惰”的保存方式是通过CPU的硬件支持完成的：
+每次上下文切换时，CPU的TS标志位就被置为1；
+每次浮点或向量运算指令执行时，若TS标志位为1，则会报“Device Not Available”异常.
+内核在处理这个异常时会记录下来：该进程使用了浮点或向量运算.
+再次切换进程时，若发现使用了浮点或向量运算，则保存相应的状态.
+这些状态是保存在 \lstinline{thread_struct} 的最后一个域 \lstinline{struct fpu fpu;}.
+这个数据结构是变长的，这也是 \lstinline{struct thread_struct thread;}
+要放在 \lstinline{task_struct} 最后的原因.
+
+\begin{readsrcbox}{\lstinline{thread_struct}}
+	\lstinline{thread_struct} 是架构相关的.
+	x86的 \lstinline{thread_struct} 的定义在 \lstinline{arch/x86/include/asm/processor.h} 中.
+
+	进程调度总是调用通过一个名为 \lstinline{schedule()}
+	（\lstinline{kernel/sched/core.c}） 的函数实现的.
+	真正完成调度的主要函数为 \lstinline{__schedule()}，
+	其上方的注释说明了所有会调用它的情况.
+
+	而最终完成进程切换的是一个名为 \lstinline{switch_to(prev, next, last)} 的宏
+	（x86上的定义在 \lstinline{arch/x86/include/asm/switch_to.h}，
+	64位机器的实现，汇编部分在 \lstinline{arch/x86/entry/entry_64.S}.
+	C语言部分在 \lstinline{arch/x86/kernel/process_64.c}）.
+	其关键的操作就是切换进程的内核栈：
+	\begin{enumerate}
+		\item 将被调用者保存寄存器压入栈；
+		\item 把rsp寄存器存入原来进程的 \lstinline{thread->sp}；
+		\item 把新进程的 \lstinline{thread->sp} 放入rsp寄存器；
+		\item 最后从新的栈中弹出所有调用者保存寄存器.
+	\end{enumerate}
+\end{readsrcbox}
 
 Scheduling information is also included in the PCB, including priority of the process, schedule entity that represents the process and a pointer to the schedule class that this process is using.
