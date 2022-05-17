@@ -23,10 +23,10 @@
 	      处于这两个状态的进程正在等待，但是只有 \lstinline{TASK_INTERRUPTIBLE} 状态的进程才会被信号唤醒.
 	\item \lstinline{TASK_NOLOAD}.
 	      类似 \lstinline{TASK_UNINTERUPTIBLE} 但是在统计数据中不被计入负载.
-	      \footnote{\url{https://lore.kernel.org/lkml/alpine.LFD.2.11.1505112154420.1749@ja.home.ssi.bg/T/}}
+	      \footnote{见 \url{https://lore.kernel.org/lkml/alpine.LFD.2.11.1505112154420.1749@ja.home.ssi.bg/T/}}
 	\item \lstinline{TASK_WAKING}.
 	      进程已经被要求唤醒，但是还没有进入正在运行的进程队列.
-	      \footnote{\url{https://lore.kernel.org/lkml/tip-e9c8431185d6c406887190519f6dbdd112641686@git.kernel.org/}}
+	      \footnote{见 \url{https://lore.kernel.org/lkml/tip-e9c8431185d6c406887190519f6dbdd112641686@git.kernel.org/}}
 	\item \lstinline{TASK_WAKEKILL}.
 	      该进程收到SIGKILL信号时会被唤醒.
 	\item \lstinline{TASK_TRACED}.
@@ -39,7 +39,7 @@
 若结果为0则不处于这个状态.
 这些状态中有的状态可以组合成新的掩码，方便使用.
 
-\subsubsection{进程的上下文}
+\subsubsection{进程的CPU上下文}
 进程控制块还需要存储有关进程上下文的信息，例如有关栈和堆的信息和CPU内部寄存器的值.
 这一部分信息既和内核的内存管理有关又依赖于具体的硬件架构，
 是实现进程调度中挂起和重启进程所需要的数据结构.
@@ -98,7 +98,7 @@ Linux 内核在上下文切换时，寄存器的值实际上是存在进程的�
 减小了保存FPU状态的开销，
 而且程序越来越依赖向量指令来进行拷贝数据等操作，
 所以Linux在2016年取消了“懒惰”的保存方式，
-\footnote{\url{https://lore.kernel.org/lkml/e3b2baadcd19bf8abcd3bcd60d19e8e50e75f63a.1453510332.git.luto@kernel.org/}}
+\footnote{见 \url{https://lore.kernel.org/lkml/e3b2baadcd19bf8abcd3bcd60d19e8e50e75f63a.1453510332.git.luto@kernel.org/}}
 每次进程切换都保存FPU的状态.
 除了进程切换，
 另外一个需要保存和恢复FPU状态的时机是内核代码在用户上下文中使用浮点或向量运算的前后，
@@ -113,15 +113,15 @@ FPU的状态保存在 \lstinline{thread_struct} 的 \lstinline{struct fpu fpu;}�
 	\lstinline{thread_struct} 是架构相关的.
 	x86的 \lstinline{thread_struct} 的定义在 \lstinline{arch/x86/include/asm/processor.h} 中.
 
-	进程调度总是调用通过一个名为 \lstinline{schedule()}
-	（\lstinline{kernel/sched/core.c}） 的函数实现的.
-	真正完成调度的主要函数为 \lstinline{__schedule()}，
+	进程调度总是通过调用一个名为 \lstinline{schedule()}
+	（\lstinline{kernel/sched/core.c}） 的函数来实现.
+	真正完成调度的函数为 \lstinline{__schedule()}（在同一个文件），
 	其上方的注释说明了所有会调用它的情况.
 
 	而最终完成进程切换的是一个名为 \lstinline{switch_to(prev, next, last)} 的宏
-	（x86上的定义在 \lstinline{arch/x86/include/asm/switch_to.h}，
-	64位机器的实现，汇编部分在 \lstinline{arch/x86/entry/entry_64.S}.
-	C语言部分在 \lstinline{arch/x86/kernel/process_64.c}）.
+	\footnote{x86上的定义在 \lstinline{arch/x86/include/asm/switch_to.h}.
+		64位机器的实现，汇编部分在 \lstinline{arch/x86/entry/entry_64.S}；
+		C语言部分在 \lstinline{arch/x86/kernel/process_64.c}}.
 	其关键的操作就是切换进程的内核栈：
 	\begin{enumerate}
 		\item 将被调用者保存寄存器压入栈；
@@ -133,13 +133,15 @@ FPU的状态保存在 \lstinline{thread_struct} 的 \lstinline{struct fpu fpu;}�
 
 % TODO: figure
 
-\begin{qbox}{\lstinline{struct thread_info} 与 PCB有什么关系呢？}
-	\lstinline{struct task_struct}是PCB，
-	而 \lstinline{struct thread_info} 存放的是需要在汇编代码中直接使用的底层的进程信息.
-	\lstinline{struct thread_info}的大小被控制在一个cache行内，这是由于这些底层信息需要被频繁查看.
-	为了尽量利用空间，信息都按位编码在其中.
+\begin{qbox}{\lstinline{struct thread_info} 与 PCB是什么关系呢？}
+	\lstinline{struct task_struct}是进程控制块，
+	而 \lstinline{struct thread_info} 存放的也是进程信息，
+	只是这些信息更接近底层硬件，且需要能在汇编代码中直接使用.
+	\lstinline{struct thread_info} 的大小被控制在一个cache行内，这是由于这些底层信息需要被频繁查看，cache miss会造成较大影响.
+	为了尽量利用空间，所有信息都按位编码在其中.
 	例如，上文提到的“内核使用了浮点或向量运算而需要加载原来的FPU状态”，
-	就存储在 \lstinline{thread_info} 的第 \lstinline{TIF_NEED_FPU_LOAD} 位.
+	就存储在 \lstinline{thread_info} 的第 \lstinline{TIF_NEED_FPU_LOAD}
+	\footnote{\lstinline{arch/x86/include/asm/thread_info.h} 中定义的宏.} 位.
 
 	\lstinline{struct thread_info} 在更早的Linux版本中位于进程的内核栈的起始位置
 	\cite{bovet2005understanding}，
@@ -147,8 +149,17 @@ FPU的状态保存在 \lstinline{thread_struct} 的 \lstinline{struct fpu fpu;}�
 	现在的x86 Linux内核默认把 \lstinline{struct thread_info} 放入
 	\lstinline{struct task_struct}，
 	与PCB的其他成员处于类似的地位.
-	\footnote{\url{https://lore.kernel.org/all/cover.1473801993.git.luto@kernel.org/}}
-	\footnote{\url{https://lore.kernel.org/all/a50eab40abeaec9cb9a9e3cbdeafd32190206654.1473801993.git.luto@kernel.org}}
+	\footnote{见 \url{https://lore.kernel.org/all/cover.1473801993.git.luto@kernel.org/}}
+	\footnote{见 \url{https://lore.kernel.org/all/a50eab40abeaec9cb9a9e3cbdeafd32190206654.1473801993.git.luto@kernel.org}}
 \end{qbox}
 
-Scheduling information is also included in the PCB, including priority of the process, schedule entity that represents the process and a pointer to the schedule class that this process is using.
+\subsubsection{其他信息}
+进程控制块中还包括这些方面的相关信息：内存管理、打开的文件、文件系统、调度器、统计数据等.
+
+\begin{itemize}
+	\item\textit{内存管理：} 进程的虚拟地址空间信息，\textbf{页表}（将在 TODO 中介绍）
+	\item \textit{文件：} 内核需要维护进程\textbf{打开的文件的表}，以记录该进程读写文件的状态.
+	\item \textit{文件系统：} 记录进程的\textbf{工作目录}和，操作文件所用的\textbf{权限}等.
+	\item \textit{调度：}进程所属的\textbf{调度类型}，进程的\textbf{优先级}等. （将在TODO中介绍）
+	\item \textit{异常处理/进程通信：}进程等待接收的\textbf{信号}，信号的屏蔽情况，\textbf{信号处理程序}的地址.
+\end{itemize}
