@@ -48,16 +48,17 @@
 \lstset{style=mystyle}
 \usepackage{footmisc}
 \usepackage{biblatex}
+\usepackage{imakeidx}
 \usepackage[most]{tcolorbox}
 \newtcolorbox{notebox}[0]{colback=yellow!5!white,
 colframe=yellow!75!black,fonttitle=\bfseries,parbox=false,breakable,
 title={Note}}
-\newtcolorbox{qbox}[1]{colback=blue!5!white,
+\newtcolorbox[auto counter, number within=section, list inside=question]{qbox}[1]{colback=blue!5!white,
 colframe=blue!75!black,fonttitle=\bfseries,parbox=false,breakable,
-title={小问题：#1}}
-\newtcolorbox{readsrcbox}[1]{colback=green!5!white,
+title={小问题~\thetcbcounter：#1}}
+\newtcolorbox[auto counter, number within=section, list inside=src]{readsrcbox}[1]{colback=green!5!white,
 colframe=green!75!black,fonttitle=\bfseries,parbox=false,breakable,
-title={读源码：#1}}
+title={读源码~\thetcbcounter：#1}}
 
 \addbibresource{bib.bib}
 \date{\today}
@@ -103,8 +104,17 @@ Arch Linux用户可以选择和配置自己的Linux内核，一般使用的是�
 
 \include{task_zh.tex}
 
+\section{附录}
+\tcblistof[\subsection]{question}{“小问题”列表}
+\tcblistof[\subsection]{src}{“读源码”列表}
+
 \printbibliography[heading=bibintoc]
 
 \newpage
 
 \end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
