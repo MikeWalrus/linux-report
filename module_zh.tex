@@ -1,12 +1,14 @@
 \section{Linux内核的架构}
-Linux是宏内核，即整个内核是一个共用地址空间的二进制程序.
+Linux是宏内核\index{monolithic kernel}，即整个内核是一个共用地址空间的二进制程序.
 宏内核架构是相对于微内核而言的.
 微内核架构基于消息传递，作为内核的二进制程序只有最基本的功能，其他的不同组件处于不同的地址空间，它们之间通过消息传递的方式来进行交互.
 Linux内核采用宏内核的架构主要是出于性能方面的考虑.\cite{silberschatz2021operating}
 同一地址空间的各个部分可以直接相互调用，没有消息传递的开销.
 
 宏内核的架构不代表Linux内核不能采用模块化的设计，这得益于动态链接技术.
-Linux内核由常驻内存的内核镜像\lstinline{vmlinux}和动态加载的各种模块构成.
+Linux内核由常驻内存的内核镜像 \lstinline{vmlinux}%
+\index{kernel image} \index{v@\lstinline{vmlinux}|see {kernel image}}%
+和动态加载的各种模块\index{kernel module}构成.
 使用运行时加载的模块的好处有很多.
 首先，这些模块在加载后就处于核心态，可以调用内核中的任何代码，访问硬件也没有限制，这可以使内核的设计者适度地划分各个功能之间的界限——避免功能之间耦合度过高的同时也不必在不同部分之间使用复杂的交互方法.
 其次，动态加载模块可以在操作系统运行时更改内核，这对内核的开发有好处，因为不用编译整个内核并重启系统.
@@ -29,10 +31,11 @@ Linux内核由常驻内存的内核镜像\lstinline{vmlinux}和动态加载的�
 \begin{qbox}{如何找到某个子系统的有关文件和信息？}
 	\lstinline{Maintainer} 文件中列出了Linux内核各个子系统的维护者，同时它还包括有关项目的网页和涉及的文件等有用的信息.
 \end{qbox}
-Linux内核的构建系统是一套基于GNU Make的递归式的构建系统，包括各个目录下的Makefile和为这些Makefile提供基础设施支持的其他文件，通常称为 \lstinline{kbuild}. \cite{LinuxKer71:online}
+Linux内核的构建系统\index{Kernel Build System}\index{Kbuild!see {Kernel Build System}}%
+是一套基于GNU Make的递归式的构建系统，包括各个目录下的Makefile和为这些Makefile提供基础设施支持的其他文件，通常称为 \lstinline{kbuild}. \cite{LinuxKer71:online}
 
 整个内核构建系统的目标主要就是内核镜像 \lstinline{vmlinux} 和可加载的模块.
-各个Kbuild Makefile以向 \lstinline{obj-m} 和 \lstinline{obj-y} 变量增加内容的方式列出本目录应该构建的目标，
+各个Kbuild Makefile以向 \lstinline{obj-m} 和 \lstinline{obj-y} 变量增加内容的方式列出本目录应该构建的目标\index{build goal}，
 其中 \lstinline{obj-m} 变量中定义的目标会被构建成内核模块——后缀名为 \lstinline{.ko} 的一种ELF文件，而 \lstinline{obj-y} 变量中定义的目标会被 \lstinline{$(AR)}\footnote{一般就是GNU Binutils里面的ar，用于把多个 \lstinline{.o} 目标文件归档到一个文件中.} 合并到一个名为 \lstinline{built-in.a} 的库中，最后被链接进 \lstinline{vmlinux}.
 顶层目录的Makefile递归地构建子目录.
 
@@ -46,6 +49,7 @@ obj-$(CONFIG_BTRFS_FS) := btrfs.o
 \end{lstlisting}
 
 类似 \lstinline{CONFIG_BTRFS_FS} 的变量的定义来源于与内核构建系统一起工作的配置系统——Kconfig.
+\index{Kconfig}%
 开发者往往会通过 \lstinline{make *config} 来调用某种目录界面对将要构建的内核进行配置，选择要启用的功能并配置其中的参数.
 这一步骤生成Kconfig语言的内核配置文件，为Kbuild提供各种变量，对构建出来的内核造成影响.
 
@@ -53,7 +57,7 @@ obj-$(CONFIG_BTRFS_FS) := btrfs.o
 \lstinline{CONFIG_BTRFS_FS=m}.
 这意味着Arch Linux 的 Linux 包所使用的内核中，BTRFS的支持是作为可加载的模块编译的.
 
-内核构建系统的设计还允许在内核的代码树外构建内核模块，只要安装了对应版本的头文件和构建脚本，Linux的使用者甚至可以在自己计算机的任何目录编写、构建和安装自己的内核模块.
+内核构建系统的设计还允许在内核的代码树\index{out-of-tree module}外构建内核模块，只要安装了对应版本的头文件和构建脚本，Linux的使用者甚至可以在自己计算机的任何目录编写、构建和安装自己的内核模块.
 同样以 Arch Linux 为例，要安装的是
 \href{https://archlinux.org/packages/core/x86_64/linux-headers/}{linux-headers}.
 编译自己的模块时，首先编写Kbuild文件，声明要编译的目标.
@@ -99,21 +103,22 @@ make -C /lib/modules/`uname -r`/build M=$PWD
 模块的加载一般是由用户态的程序发起的.
 Arch Linux的启动过程\cite{archboot:online}中，首先是bootloader加载vmlinux镜像，
 这时内核的根文件系统是内存中的逻辑上的文件系统，
-称为initramfs（initial RAM file system）.
+称为initramfs（initial RAM file system）.\index{initramfs}
 内核随后把磁盘上的initramfs镜像解压到该文件系统中，
-这时就进入了“早期用户空间”阶段.
-Arch Linux 的 init 系统采用的是systemd，
+这时就进入了“早期用户空间”阶段.\index{early userspace}
+Arch Linux 的 init 系统采用的是systemd，\index{systemd}
 systemd此时会启动一个名为 \lstinline{systemd-modules-load} 的服务
 \footnote{位于\lstinline{/usr/lib/systemd/system/systemd-modules-load.service}}，
 该服务启动一个同名的程序，
 来根据用户的配置文件加载内核启动早期所需要的模块.
-当真正的根文件系统被挂载后，内核模块的自动加载就由systemd的udev系统负责，
+当真正的根文件系统被挂载后，内核模块的自动加载就由systemd的udev系统\index{udev}负责，
 udev根据设备的变化、事件的发生来自动加载和卸载所需要的内核模块，
 以此为设备提供驱动程序和增改内核的功能.
 
 \begin{notebox}
 	内核模块也可以手动管理.
-	\href{https://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git}{kmod} 是Linux用户态的模块管理程序和库.
+	\href{https://git.kernel.org/pub/scm/utils/kernel/kmod/kmod.git}{kmod}\index{kmod}
+	是Linux用户态的模块管理程序和库.
 	常用的命令有：
 	\begin{itemize}
 		\item 加载模块: \lstinline{modprobe 模块名}
@@ -121,3 +126,8 @@ udev根据设备的变化、事件的发生来自动加载和卸载所需要的�
 		\item 显示依赖: \lstinline{modprobe --show-depends 模块名}
 	\end{itemize}
 \end{notebox}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "linux_zh"
+%%% End:
