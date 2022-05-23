@@ -1,0 +1,25 @@
+\section{历史}
+\subsection{Linux 内核的历史}
+Linux内核\index{Linux}最初是1991年，当时的赫尔辛基大学本科生Linus Torvalds出于兴趣为自己的386计算机编写的，开发使用的操作系统是教学用的Minix、编译器为GNU的GCC.
+当时的背景是这样的：自由软件运动的GNU项目运转了近十年，且取得了很大的进展，GCC作为自由的编译器已经相当成功，其他用户态的工具都比较完善，但是内核项目仍处于早期阶段.
+在此之前，Unix于1970年发布，它的成功使得学界和商业界都乐于借鉴其模式和思想.
+因此作为一本操作系统教材的配套实现，Minix部分使用了Unix的理念，而GNU也把开发出与Unix兼容的自由操作系统为目标.
+Linux 0.1版本发布后，世界上许多开发者对Linus的操作系统很感兴趣，他们加入了Linux的内核的开发，并将一些GNU系统的组件移植到Linux内核，最终使之成为GNU系统事实上的内核.
+
+1992年Linus将Linux 0.99 在GNU General Public License 下发布，Linux正式成为自由软件.
+
+2000年左右，在以著名的论文The Cathedral and the Bazaar为代表的开源运动的影响下，Linux作为开源软件的开发模式开始得到许多公司的重视.
+许多硬件和软件公司在这时都开始为Linux提供支持，并加入Linux内核的开发.
+
+如今（2020s）绝大多数互联网服务器运行Linux 发行版\cite{OSUsageT34:online}，Linux内核也广泛用于嵌入式设备和智能手机.
+作为成熟的可移植的自由类Unix内核，Linux既成为了开源运动的成功范例又为自由软件运动作出了突出的贡献.
+\subsection{发行版Arch Linux}
+Arch Linux \index{Arch Linux}是程序员兼吉他手Judd Vinet在2002年创建的一个滚动发行的Linux发行版.
+其主要特点在于拥有可以自动管理依赖的包管理器pacman和受FreeBSD启发的包构建系统\cite{DistroWa81:online}.
+由于Arch Linux上构建和分享软件包非常简单，Arch Linux用户可以使用的软件包非常丰富.
+其简易性和以用户为中心\cite{ArchLinux15:online} 的优点使其成为滚动发行模式的代表和最受桌面用户欢迎的Linux发行版之一.
+
+Arch Linux用户可以选择和配置自己的Linux内核，一般使用的是最新的stable分支上的普通的Linux内核.
+\begin{notebox}
+	由于发行版的内核可以自己配置，发行版的区别对于本案例分析的影响不大，后文的分析将不太涉及发行版之间的区别.
+\end{notebox}
