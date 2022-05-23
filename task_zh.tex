@@ -550,6 +550,51 @@ CFS的调度下，系统的交互性其实比较好.
 
 现在我们再来关注之前忽略掉的细节.
 
+首先是调度的粒度.
+如果是理想的CPU，所有的进程同时执行，
+彼此之间的 \lstinline{vruntime} 应该没有任何区别.
+这样的调度粒度就是0.
+这意味着进程切换在不断进行，每秒钟都进行无穷次进程切换.
+而我们在 \ref{context} 中已经认识到，
+上下文切换是一个开销很大的操作.
+过于频繁的切换显然不利于有效利用CPU.
+为了避免过度调度、降低调度的频率，应该设置一个合适的调度粒度.\cite{CFSSched96:online}
+CFS中调度粒度可由 \lstinline{/proc/sys/kernel/sched_min_granularity_ns} 配置.
+它的含义是，当新的进程抢占当前进程时满足：
+\begin{equation*}
+	vruntime_{\mbox{当前进程}}-min\_vruntime = sched\_min\_granularity\_ns
+\end{equation*}
+因此这也是进程持续运行而不被抢占的最小时间.
+
+如果用户或系统管理员不希望不同进程“公平”地分享CPU时间怎么办？
+这就需要在增加 \lstinline{vruntime} 时做一些调整.
+CFS调度的所有进程的优先级都是0，
+而用来区分紧急程度的是nice值\index{nice}.
+nice值越高，进程就对其他进程越“友好”，占用的CPU时间应该越少.
+CFS 利用增加 \lstinline{vruntime} 的机会来区别对待不同nice值的进程.
+每次加上的值实际上是真正的运行时间乘上与nice值相关的权重，
+nice值高于0的进程增加的时间比实际时间多，
+nice值低于0的进程增加的时间比实际时间少，
+这样就可以通过用 \lstinline{nice}、\lstinline{renice} 等方法改变进程的调度优先级.
+
+CFS的运行队列在功能上是根据 \lstinline{vruntime} 排序的优先队列，
+实现上，需要频繁取最小元素，删除元素和插入元素，
+若要取得较低的复杂度，需要引入更复杂的数据结构.
+CFS使用的是红黑树（Linux里叫rbtree\index{rbtree}），一种常用的自平衡的排序树.
+并且它还在平衡树的时候存储最左边的节点，以达到可以直接访问队列中最小元素的效果.
+
+\begin{readsrcbox}{\lstinline{vruntime}的更新，红黑树}
+	更新 \lstinline{vruntime} 的代码在 \lstinline{kernel/sched/fair.c} 的
+	\lstinline{calc_delta_fair} 函数中.
+
+	Linux的红黑树的实现在 \lstinline{lib/rbtree.c} 和
+	\lstinline{include/linux/rbtree.c}.
+	值得注意的是，搜索和插入节点的代码需要自己实现，
+	因为C语言缺乏对泛型的支持，而使用回调函数又有很大开销%
+	\footnote{
+		例如C语言的 \lstinline{qsort} 就远不如支持泛型的C++的STL 中的
+		\lstinline{sort}，因为无法内联特定实现的函数，还需要解引用函数指针.}.
+\end{readsrcbox}
 
 %%% Local Variables:
 %%% mode: latex
