@@ -13,7 +13,7 @@ Completely Fair Scheduler（CFS）上.
 下面，我们介绍管理进程所需要的多种信息，并介绍它们是如何在 \lstinline{task_struct} 中表示的.
 
 \begin{readsrcbox}{进程控制块}
-	\lstinline{struct task_struct} 是在\lstinline{include/linux/sched.h}中定义的.
+	\lstinline{struct task_struct} 是在\linuxsrc{include/linux/sched.h}中定义的.
 \end{readsrcbox}
 
 \subsubsection{进程的状态} \label{process state}
@@ -52,13 +52,13 @@ Completely Fair Scheduler（CFS）上.
 是实现进程调度中挂起和重启进程所需要的数据结构.
 \begin{readsrcbox}{架构相关代码}
 	为了提高可移植性，Linux内核的代码区分不依赖于具体硬件架构的代码和针对特定架构的代码.
-	架构相关的代码全部在 \lstinline{arch} 目录下.
-	例如 x86和x86\_64的代码位于 \lstinline{arch/x86}.
+	架构相关的代码全部在 \linuxsrc{arch} 目录下.
+	例如 x86和x86\_64的代码位于 \linuxsrc{arch/x86}.
 
 	显然，所有的汇编代码都应该放在该目录.
 	内存管理和进程管理所需的某些功能也依赖于CPU的特定功能，
 	需要根据硬件功能定义数据结构和执行具体的指令，
-	这些定义和实现也位于 \lstinline{arch} 下具体架构的目录下.
+	这些定义和实现也位于 \linuxsrc{arch} 下具体架构的目录下.
 	不同的架构的代码尽量暴露出相同的接口，供架构无关代码使用.
 
 	某一架构上的具体实现的文档可以在 \href{https://docs.kernel.org/arch.html}{\lstinline{Document/arch.rst}} 中的列表找到.
@@ -120,10 +120,10 @@ FPU的状态保存在 \lstinline{thread_struct} 的 \lstinline{struct fpu fpu;}�
 
 \begin{readsrcbox}{\lstinline{thread_struct}}
 	\lstinline{thread_struct}\index{t@\lstinline{thread_struct}} 是架构相关的.
-	x86的 \lstinline{thread_struct} 的定义在 \lstinline{arch/x86/include/asm/processor.h} 中.
+	x86的 \lstinline{thread_struct} 的定义在 \linuxsrc{arch/x86/include/asm/processor.h} 中.
 
 	进程调度总是通过调用一个名为 \lstinline{schedule()}\index{s@\lstinline{schedule()}}
-	（\lstinline{kernel/sched/core.c}） 的函数来实现.
+	（\linuxsrc{kernel/sched/core.c}） 的函数来实现.
 	真正完成调度的函数为 \lstinline{__schedule()}（在同一个文件），
 	其上方的注释说明了所有会调用它的情况.
 
@@ -288,8 +288,8 @@ Linux全部把他们当作调度的单位.
 
 \begin{readsrcbox}{进程创建}
 	\lstinline{struct task_struct init_task}\index{i@\lstinline{init_task}}
-	的定义在 \lstinline{init/init_task.c} 中.
-	创建进程的函数主要在 \lstinline{kernel/fork.c}，
+	的定义在 \linuxsrc{init/init_task.c} 中.
+	创建进程的函数主要在 \linuxsrc{kernel/fork.c}，
 	其调用关系为：
 	\begin{itemize}
 		\item \lstinline{kernel_clone}
@@ -297,7 +297,7 @@ Linux全部把他们当作调度的单位.
 			      \item \lstinline{copy_process}
 			            \begin{itemize}
 				            \item \lstinline{copy_thread} \\
-				                  （架构相关，在\lstinline{arch/x86/kernel/process.c}）
+				                  （架构相关，在\linuxsrc{arch/x86/kernel/process.c}）
 			            \end{itemize}
 		      \end{itemize}
 	\end{itemize}
@@ -368,12 +368,12 @@ Completely Fair Scheduler（CFS）后\cite{Linux2_6_23:online}，
 	\href{https://docs.kernel.org/scheduler/index.html}{\lstinline{Document/scheduler}}
 	目录.
 
-	与算法无关的调度过程在 \lstinline{kernel/sched/core.c}.
+	与算法无关的调度过程在 \linuxsrc{kernel/sched/core.c}.
 	处理时间流逝的是 \lstinline{scheduler_tick} 函数，
 	选择下一进程并切换上下文的是 \lstinline{schedule} 函数，
 	唤醒进程的是 \lstinline{try_to_wake_up} 函数.
 
-	\lstinline{struct sched_class} 的定义在 \lstinline{include/linux/sched.h}.
+	\lstinline{struct sched_class} 的定义在 \linuxsrc{include/linux/sched.h}.
 	与上文提到的调度过程三个部分有关的函数有：
 	\begin{itemize}
 		\item \lstinline{pick_next_task} 选取下一个进程.
@@ -385,8 +385,8 @@ Completely Fair Scheduler（CFS）后\cite{Linux2_6_23:online}，
 		      \end{itemize}
 	\end{itemize}
 
-	不同的 \lstinline{struct sched_class} 优先级是在链接脚本
-	\lstinline{include/asm-generic/vmlinux.ld.s} 中定义的，
+	不同的 \lstinline{struct sched_class} 优先级是在包含链接脚本宏的
+	\linuxsrc{include/asm-generic/vmlinux.lds.h} 中定义的，
 	地址上的顺序就是优先级的顺序.
 \end{readsrcbox}
 
@@ -535,8 +535,8 @@ CFS为每一个进程维护一个名为 \lstinline{vruntime}\index{v@\lstinline{
 	CFS的文档在\href{https://docs.kernel.org/scheduler/sched-design-CFS.html}{\lstinline{Documentation/scheduler/sched-design-CFS.rst}}.
 
 	CFS的scheduling class为 \lstinline{sched_fair_class}，
-	实现在 \lstinline{kernel/sched/fair.c}.
-	关于normalize的说明可见 \lstinline{enqueue_entity} 上方的注释.
+	实现在 \linuxsrc{kernel/sched/fair.c}.
+	关于normalize的说明可见函数 \lstinline{enqueue_entity} 上方的注释.
 \end{readsrcbox}
 
 既然进程等待的时间不会被补偿，
@@ -584,11 +584,11 @@ CFS使用的是红黑树（Linux里叫rbtree\index{rbtree}），一种常用的�
 并且它还在平衡树的时候存储最左边的节点，以达到可以直接访问队列中最小元素的效果.
 
 \begin{readsrcbox}{\lstinline{vruntime}的更新，红黑树}
-	更新 \lstinline{vruntime} 的代码在 \lstinline{kernel/sched/fair.c} 的
+	更新 \lstinline{vruntime} 的代码在 \linuxsrc{kernel/sched/fair.c} 的
 	\lstinline{calc_delta_fair} 函数中.
 
-	Linux的红黑树的实现在 \lstinline{lib/rbtree.c} 和
-	\lstinline{include/linux/rbtree.c}.
+	Linux的红黑树的实现在 \linuxsrc{lib/rbtree.c} 和
+	\linuxsrc{include/linux/rbtree.h}.
 	值得注意的是，搜索和插入节点的代码需要自己实现，
 	因为C语言缺乏对泛型的支持，而使用回调函数又有很大开销%
 	\footnote{

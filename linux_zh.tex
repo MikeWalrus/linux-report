@@ -20,7 +20,7 @@
     linkcolor=blue,
     filecolor=magenta,
     urlcolor=cyan,
-    pdftitle={Overleaf Example},
+    pdftitle={OS Case Study},
     pdfpagemode=FullScreen,
     }
 \usepackage{xcolor}
@@ -61,6 +61,10 @@ title={小问题~\thetcbcounter：#1}}
 colframe=green!75!black,fonttitle=\bfseries,parbox=false,breakable,
 title={读源码~\thetcbcounter：#1}}
 \usepackage{csquotes}
+
+\newcommand{\onlinesrc}[2]{\href{#1#2}{\lstinline{#2}}}
+\newcommand{\linuxsrc}[1]
+{\onlinesrc{https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/}{#1}}
 
 \addbibresource{bib.bib}
 \date{\today}

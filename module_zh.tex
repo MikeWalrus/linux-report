@@ -25,8 +25,8 @@ Linux内核由常驻内存的内核镜像 \lstinline{vmlinux}%
 \begin{readsrcbox}{Kernel Build System}
 	内核的构建系统有关的文档在 \href{https://docs.kernel.org/kbuild/index.html}{\lstinline{Documentation/kbuild}} 目录.
 
-	可以参考顶层目录的\lstinline{Makefile}，各个目录下的\lstinline{Makefile}、\lstinline{Kbuild}.
-	另外，\lstinline{script}目录下有用来链接 \lstinline{vmlinux}和有关构建模块的脚本.
+	可以参考顶层目录的\linuxsrc{Makefile}，各个目录下的\lstinline{Makefile}、\lstinline{Kbuild}.
+	另外，\linuxsrc{script}目录下有用来链接 \lstinline{vmlinux}和有关构建模块的脚本.
 \end{readsrcbox}
 \begin{qbox}{如何找到某个子系统的有关文件和信息？}
 	\lstinline{Maintainer} 文件中列出了Linux内核各个子系统的维护者，同时它还包括有关项目的网页和涉及的文件等有用的信息.
@@ -70,9 +70,9 @@ make -C /lib/modules/`uname -r`/build M=$PWD
 \subsection{内核模块的加载}
 
 \begin{readsrcbox}{加载模块}
-	模块在内核中的表示见 \lstinline{include/linux/module.h}.
+	模块在内核中的表示见 \linuxsrc{include/linux/module.h}.
 
-	加载模块的函数为 \lstinline{kernel/module.c} 中的 \lstinline{load_module}.
+	加载模块的函数为 \linuxsrc{kernel/module.c} 中的 \lstinline{load_module}.
 
 	\lstinline{init_module} 是加载模块的系统调用，它把模块的内容从用户空间拷贝到内核，然后调用\lstinline{load_module}.
 \end{readsrcbox}
