@@ -53,7 +53,7 @@ obj-$(CONFIG_BTRFS_FS) := btrfs.o
 开发者往往会通过 \lstinline{make *config} 来调用某种目录界面对将要构建的内核进行配置，选择要启用的功能并配置其中的参数.
 这一步骤生成Kconfig语言的内核配置文件，为Kbuild提供各种变量，对构建出来的内核造成影响.
 
-以Arch Linux为例，其官方的内核配置文件中有关上述BTRFS模块的\href{https://github.com/archlinux/svntogit-packages/blob/974377e2b1ab9e822c71fbb05a82bfb8dd9a7971/trunk/config#L9619}{一行}为：
+以Arch Linux为例，其官方的内核配置文件中有关上述BTRFS模块的\archlinuxconf{9619}{一行}为：
 \lstinline{CONFIG_BTRFS_FS=m}.
 这意味着Arch Linux 的 Linux 包所使用的内核中，BTRFS的支持是作为可加载的模块编译的.
 

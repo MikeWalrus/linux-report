@@ -226,11 +226,11 @@ list_add_tail(&p->sibling, &p->real_parent->children);
 进程控制块中还包括这些方面的相关信息：内存管理、打开的文件、文件系统、调度器、统计数据等.
 
 \begin{itemize}
-	\item\textit{内存管理：} 进程的虚拟地址空间信息，\textbf{页表}（将在 TODO 中介绍）
+	\item\textit{内存管理：} 进程的虚拟地址空间信息，\textbf{页表}（将在 \ref{memory management} 中介绍）
 	\item \textit{文件：} 内核需要维护进程\textbf{打开的文件的表}，以记录该进程读写文件的状态.
 	\item \textit{文件系统：} 记录进程的\textbf{工作目录}和，操作文件所用的\textbf{权限}等.
 	\item \textit{调度：}进程所属的\textbf{调度类型}，进程的\textbf{优先级}等.
-	      （将在\ref{scheduling}中介绍）
+	      （将在 \ref{scheduling} 中介绍）
 	\item \textit{异常处理/进程通信：}进程等待接收的\textbf{信号}，信号的屏蔽情况，\textbf{信号处理程序}的地址.
 \end{itemize}
 
@@ -436,6 +436,7 @@ scheduling class 有5种，：
 \begin{notebox}
 	有关多CPU的调度机制在此不会详细说明.
 	简单地说，每一个CPU都有自己的运行队列.
+	如今越来越普遍的非统一内存访问架构（NUMA）\index{NUMA}的机器需要实现更复杂的机制.
 \end{notebox}
 
 \subsubsection{Completely Fair Scheduler}

@@ -1,0 +1,68 @@
+\section{内存管理} \label{memory management}
+
+Linux的内存管理可以分为内存分配和虚拟内存两个部分.\cite{silberschatz2021operating}
+因为Linux采用分页的方式管理内存，内存分配部分的主要任务就是分配物理页、释放物理页.
+而虚拟内存部分利用分配出来的物理页来提供内存的抽象，
+实现缓存、共享和保护等功能.
+
+\subsection{物理页面的管理}
+Linux的内存管理是基于分页技术的，因此物理内存均被看作是页面的数组.
+但是物理内存的组织形式又是架构相关的，而且一种架构可以有多种组织方式.
+Linux针对不同的物理内存形式，用不同的物理内存模型来管理.
+大部分连续的内存对应FLATMEM\index{FLATMEM}模型，
+更复杂的内存组织形式对应SPARSEMEM模型.\cite{Physical36:online}
+x86-64支持这两种形式，但是FLATMEM不支持非统一内存访问架构（NUMA）\index{NUMA}机器.
+Arch Linux和绝大多数x86-64发行版都%
+\archlinuxconf{994}{配置}的是SPARSEMEM模型.
+
+SPARSEMEM\index{SPARSEMEM}模型下，物理内存的配置可以很灵活.
+物理内存被分段表示，每一个段（section）指向连续存放的一系列物理页面.
+内核中管理物理页面的程序\archlinuxconf{995}{可以}存储在动态分配的数组中，
+因此甚至可以支持运行时添加内存设备.
+配置的灵活性却会给物理内存的访问增加复杂性，
+在物理内存不连续的条件下，物理页号（PFN）\index{PFN}并不能用于直接访问真正的物理页.
+物理页号到物理页的映射方式有两种，
+一种方式是把section的信息编码进PFN中，并且在 \lstinline{struct page}
+中也记录section的值.
+而默认配置下，例如Arch Linux \archlinuxconf{996}{使用}的是VMEMMAP\index{VMEMMAP} 方式.
+这是指在虚拟内存中专门分配一个连续的称作virtual memory map的空间来存放页面信息.
+Virtual memory map是页面信息
+\lstinline{struct page}\index{p@\lstinline{struct page}}
+的一维数组，
+以PFN为元素下标，所以要想从PFN找到页面信息（包含页面的物理地址），
+只需要计算偏移访问数组即可.
+逻辑上，这个数组内有所有的页面的信息，而且是连续的，其大小可与整个物理地址空间的大小相比.
+但是，正是因为它是虚拟地址空间的连续数组，而虚拟的页面又可以按需分配，
+所以它并不会真正占据很多空间.
+这种在物理页面管理中也使用虚拟内存的想法非常能体现虚拟内存的灵活性.
+
+\begin{readsrcbox}{\lstinline{struct page}，内存模型}
+	\lstinline{struct page} 是存储物理页面的信息的结构体.
+	其中包括物理页面的地址，分配和回收页面需要的信息等，
+	定义在 \linuxsrc{include/linux/mm_types.h}.
+
+	虚拟地址到物理地址的映射需要用PFN来找到物理页面，
+	这就需要用PFN算出对应的 \lstinline{struct page}，
+	完成PFN和 \lstinline{page} 之间的转换的是宏
+	\lstinline{pfn_to_page} 和 \lstinline{page_to_pfn}，
+	不同的物理内存模型的实现不同，内存模型相关定义可见
+	\linuxsrc{include/asm-generic/memory_model.h}.
+	其中VMEMMAP由于有虚拟地址上连续的\lstinline{vmemmap}，
+	其转换过程就是涉及数组元素偏移量的简单计算：
+	\begin{lstlisting}[language=C]
+/* include/asm-generic/memory_model.h */
+#define __pfn_to_page(pfn)	(vmemmap + (pfn))
+#define __page_to_pfn(page)	(unsigned long)((page) - vmemmap)
+\end{lstlisting}
+
+	SPARSEMEM的VMEMMAP模型下，
+	\lstinline{struct page *vmemmap} 由架构相关的代码定义.
+	x86-64的位于 \linuxsrc{arch/x86/include/asm/pgtable_64.h}.
+	架构无关的用于填充 \lstinline{vmemmap} 的代码位于
+	\linuxsrc{mm/sparse-vmemmap.c}.
+\end{readsrcbox}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "linux_zh"
+%%% End:

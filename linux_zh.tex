@@ -65,6 +65,7 @@ title={读源码~\thetcbcounter：#1}}
 \newcommand{\onlinesrc}[2]{\href{#1#2}{\lstinline{#2}}}
 \newcommand{\linuxsrc}[1]
 {\onlinesrc{https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/}{#1}}
+\newcommand{\archlinuxconf}[2]{\href{https://github.com/archlinux/svntogit-packages/blob/974377e2b1ab9e822c71fbb05a82bfb8dd9a7971/trunk/config\#L#1}{#2}}
 
 \addbibresource{bib.bib}
 \date{\today}
@@ -81,11 +82,13 @@ title={读源码~\thetcbcounter：#1}}
 
 \newpage
 
-\include{history_zh.tex}
+\include{history_zh}
 
-\include{module_zh.tex}
+\include{module_zh}
 
-\include{task_zh.tex}
+\include{task_zh}
+
+\include{mem_zh}
 
 \section{附录}
 \tcblistof[\subsection]{question}{“小问题”列表}
