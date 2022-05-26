@@ -62,6 +62,19 @@ Virtual memory map是页面信息
 	\linuxsrc{mm/sparse-vmemmap.c}.
 \end{readsrcbox}
 
+分section的SPARSEMEM内存模型解决了物理内存的差异性，
+那么分配页面时如何区分具有不同功能的内存呢？
+答案是内存的不同区域还有ZONE的区分.
+有些设备不能访问整个地址空间，导致只有一部分地址可以用于直接内存访问DMA\index{DMA}.
+这一部分内存被设置为 \lstinline{ZONE_DMA} 或 \lstinline{ZONE_DMA32}.
+另外，一些物理地址只是用于访问设备，而不是真正的内存地址，
+这些空间被设置为 \lstinline{ZONE_DEVICE}，其中的页面永远不会成为空闲页面.
+其他的页面都可以用来当作普通的内存来分配，称为 \lstinline{ZONE_NORMAL}.
+Linux内核中的物理页面分配代码被称作zoned page allocator，\index{zoned allocator}
+是因为每一个zone是被单独管理的，各个zone之间的分配互不干扰.
+
+
+
 %%% Local Variables:
 %%% mode: latex
 %%% TeX-master: "linux_zh"
