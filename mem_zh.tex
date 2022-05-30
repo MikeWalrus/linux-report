@@ -245,6 +245,32 @@ Linux内核采用slab分配器来为内核中常用的多种需要动态分配�
 	也可以是无状态的缓冲区等.\index{kernel object}
 \end{qbox}
 
+在slab分配器中，对象存储在cache中，
+每种对象都有自己的cache\index{slab allocator!cache}，
+每一个cache中又有若干slab.\index{slab allocator!slab}
+slab是一小段连续的空间，通常为就为一个页面，
+要分配的对象就连续地存放在slab中.
+slab的分配过程中，内部的所有对象就都完成了初始化，
+所以从slab中分配得到的对象永远都是已经初始化的，
+调用者在分配和释放的时候既不用重新初始化也不用做全部的清理工作，
+清理工作会在整个slab被销毁的时候进行.
+这样的设计是考虑到有些对象的初始化开销甚至大于分配内存的开销，
+保留共用的初始状态可以显著减少由于反复初始化而带来的性能损失.\cite{bonwick1994slab}
+
+借助slab还可以减少内碎片化程度.
+slab根据存储对象的状态被分为三种：
+\begin{itemize}
+	\item 存满对象的；
+	\item 存有对象但没有装满的；
+	\item 没有存储对象的，全部空闲的；
+\end{itemize}
+在分配新的对象时，若有没装满的slab，一定使用没装满的slab，而不引入新的碎片；
+只有在没有部分装满的slab时，才会使用空闲的slab或者分配新的slab.
+
+\begin{readsrcbox}{Slab allocator}
+	slab分配器的实现在 \linuxsrc{mm/slab.c}.
+\end{readsrcbox}
+
 %%% Local Variables:
 %%% mode: latex
 %%% TeX-master: "linux_zh"
