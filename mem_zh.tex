@@ -90,6 +90,10 @@ Linux内核中的物理页面分配代码被称作zoned page allocator，\index{
 既然问题出在小区域“割裂”大区域上，那么尽量减少分割的次数、并且尽可能多地合并就可以降低外碎片化程度.
 Linux的页面分配器采用的“伙伴系统”（buddy system）\index{buddy system}就是这样的一个分配算法.
 
+\begin{notebox}
+	实际上Linux内核的页面分配器还可以分配比页面更小的单元——fragments.
+\end{notebox}
+
 伙伴系统的主要思想是为不同大小的空闲内存块分别维护一个列表，方便直接找到所需大小的空闲块，
 并且多个小的块在被释放后可以合并为大的块，而大的块如果需要也可以很方便地分割成小的块.
 具体的要求是这样的：
@@ -125,7 +129,7 @@ Linux的页面分配器采用的“伙伴系统”（buddy system）\index{buddy
 \end{itemize}
 因此，伙伴关系可以直接通过对地址做简单的位运算得到，
 只需对块地址的第 $k$ 位取反就可以算出它的伙伴的地址，这可以通过异或做到：
-\begin{lstlisting}[language=C, caption={计算伙伴的PFN}]
+\begin{lstlisting}[language=C,label={lst: find_buddy_pfn},caption={计算伙伴的PFN}]
 /* mm/internal.h */
 static inline unsigned long
 __find_buddy_pfn(unsigned long page_pfn, unsigned int order)
@@ -201,6 +205,30 @@ __find_buddy_pfn(unsigned long page_pfn, unsigned int order)
 
 	\caption{\label{fig:buddy split tree} 伙伴系统分割树型示意图}
 \end{figure}
+
+若调用者需要释放之前分配的页面，分配器会找到它的伙伴（见Listing~\ref{lst: find_buddy_pfn}），如果伙伴空闲，
+则把要释放的块和它的伙伴合并，并且把该伙伴从空闲列表中删除.
+然后继续寻找新合成的块的伙伴，尝试合并，直到伙伴不空闲或没有伙伴，无法合并为止.
+最后把合并而来的内存块加入到对应次的空闲列表中.
+合并是分割的逆过程，图~\ref{fig:buddy split}和图~\ref{fig:buddy split tree}
+在合并伙伴的过程中仍然适用.
+
+伙伴系统可以达到很高的内存利用率，在模拟中可以在无法分配之前达到95\%的利用率.
+而且，伙伴系统不仅无需定期的压缩和移动来减少碎片，
+出现分割和合并操作的频率也很低，
+总体上使用得最频繁的大小的块也是最多的.\cite{taocp1}
+
+\begin{readsrcbox}{Buddy system}
+	伙伴系统分配器的实现主要在 \linuxsrc{mm/page_alloc.c} 中.
+
+	各种分配内存的函数最终都会调用 \lstinline{__get_free_pages()} 函数，
+	通过向其传递不同的选项（GFP flags）来控制分配器的行为.
+	最终进行分配的函数是 \lstinline{rmqueue()}.
+	它寻找最小的空闲块，并调用 \lstinline{expand()} 来对较大的空闲块进行分割.
+
+	处理释放工作的是函数 \lstinline{__free_one_page()}，
+	它负责释放块，合并伙伴，更改空闲队列.
+\end{readsrcbox}
 
 %%% Local Variables:
 %%% mode: latex
