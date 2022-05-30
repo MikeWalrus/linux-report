@@ -113,7 +113,94 @@ Linux的页面分配器采用的“伙伴系统”（buddy system）\index{buddy
 再结合对半分割的规则，可以推出：
 所有的块都是按其大小对齐的.
 块的对齐对减少碎片化程度也有帮助.
-\cite{taocp1}
+
+伙伴系统的规定对操作二进制地址非常友好.\cite{taocp1}
+可以观察到，若认为块中第一个页面的PFN为块的地址，则有：
+\begin{itemize}
+	\item $k$ 次块的地址的低 $k$ 位为0；
+	\item 相邻的 $k$ 次块地址的第 $k+1$ 位（由低到高从1开始数）相反；
+	\item $k$ 次块分割出的两个 $k-1$ 次块地址的低 $k$ 位分别为
+	      $0\;{\underbrace{00\dots 0}_{k-1\text{个}}}$ 和
+	      $1\;{\underbrace{00\dots 0}_{k-1\text{个}}}$；
+\end{itemize}
+因此，伙伴关系可以直接通过对地址做简单的位运算得到，
+只需对块地址的第 $k$ 位取反就可以算出它的伙伴的地址，这可以通过异或做到：
+\begin{lstlisting}[language=C, caption={计算伙伴的PFN}]
+/* mm/internal.h */
+static inline unsigned long
+__find_buddy_pfn(unsigned long page_pfn, unsigned int order)
+{
+	return page_pfn ^ (1 << order);
+}
+\end{lstlisting}
+
+现在我们再来分析具体的分配和释放页面的算法，了解分割和合并是如何进行的.
+
+若调用者要求分配 $k$ 次的块，分配器首先找到最小的满足要求次数的空闲块列表，
+从列表中找到一个空闲块，并把它从空闲列表中移除.
+若找到的块的次数 $k' > k$，则分割直到获得 $k$ 次的块.
+分割$q$次块时，前一个$q-1$次块作为分割出$q-2$次块的对象，
+后一个块则被标记为 $q-1$ 次伙伴，并被加入到 $q-1$ 次的空闲列表中.
+如图~\ref{fig:buddy split}所示，有颜色的为每次分割的后一个块，
+它们被加入各自的空闲列表中，并且被记录成伙伴.
+这种分割关系还可以用二叉树表示，如图~\ref{fig:buddy split tree}所示，
+蓝色的节点为空闲块，且为伙伴，黑色的节点为已分配的块，
+只有兄弟节点才能合并，合并以后就变成了他们原来的父节点.
+每层的块的次相等，且随层数递增.
+
+\begin{figure}
+	\centering
+	\begin{tikzpicture}[xscale=10]
+		\newcommand{\buddysplit}[1]%{order}
+		{
+			\pgfmathsetmacro{\x}{0.5 ^ #1}
+			\draw (\x, 0) -- (\x, 1);
+			\fill[very nearly transparent, blue] (\x,0) rectangle (1,1);
+		}
+		\draw (0,0) rectangle (1,1);
+		\foreach \k in {1,...,4} {
+				\buddysplit{\k}
+			}
+	\end{tikzpicture}
+	\caption{\label{fig:buddy split} 伙伴系统分割示意图}
+\end{figure}
+
+\begin{figure}
+	\centering
+	\begin{tikzpicture}
+		[
+			every node/.style={
+					fill=blue!60,circle,inner sep=1pt,minimum width=10pt},
+			level 1/.style={sibling distance=20mm,nodes={fill=blue!60}},
+			level 2/.style={sibling distance=10mm,nodes={fill=blue!30}},
+			level 3/.style={sibling distance=5mm,nodes={fill=blue!20}},
+			level 4/.style={sibling distance=5mm,nodes={fill=blue!10}}]
+		\node[minimum width=0pt] (Root) {}
+		child {
+				child {
+						child {
+								child {node[fill=black]{}}
+								child {node{}}
+							}
+						child {node{}}
+					}
+				child {node{}}
+			}
+		child {node{}};
+		\begin{scope}[every node/.style={right}]
+			\xdef\level{Root}  % Initial top level
+			\def\rightmostnode{Root-2}   % Name of the node with greater x coordinate
+			\foreach \order in {0,...,4}
+				{
+					\path (\level -|\rightmostnode)
+					++(5mm,0) node {order = \order};
+					\xdef\level{\level-1}
+				}
+		\end{scope}
+	\end{tikzpicture}
+
+	\caption{\label{fig:buddy split tree} 伙伴系统分割树型示意图}
+\end{figure}
 
 %%% Local Variables:
 %%% mode: latex
