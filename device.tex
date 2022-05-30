@@ -19,7 +19,7 @@
 	\item 在需要释放对象时，根据对象的类型调用自定义的释放函数.
 	\item 连接其他 \lstinline{kobject}.
 	      设备和设备等之间需要构成父子关系.
-	      不同对象之间还可以利用 \lstinline{kset} 和 \lstinline{subsys} 构成collection.
+	      不同对象之间还可以利用 \lstinline{kset} 或 \lstinline{klist} 构成collection.
 	      collection 和父子关系构成了 \lstinline{kobject} 的层次结构.
 	\item 向用户空间提供接口.
 	      \lstinline{kobject} 在内核登记后就对应sysfs 虚拟文件系统
@@ -31,6 +31,7 @@
 
 \subsubsection{总线}
 总线由 \lstinline{struct bus_type} 表示.
+\index{d@\lstinline{struct bus_type}}
 所有设备在逻辑上都连在某一个总线上，所有驱动都要依靠总线访问设备.
 因此总线的对象中的 \lstinline{struct subsys_private *p}
 有两个装着 \lstinline{kobject} 的 \lstinline{kset}，
@@ -73,6 +74,61 @@
 |-- drivers_probe
 `-- uevent
 \end{lstlisting}
+
+\subsubsection{设备}
+设备在Linux设备驱动模型中的对象为 \lstinline{struct device}.
+\index{d@\lstinline{struct device}}
+其中存储的一些信息有：
+\begin{itemize}
+	\item 设备的名字；
+	\item 设备的“父设备”，例如总线控制器、hub控制器等；
+	\item 设备所在的总线类型；
+	\item 设备使用的驱动；
+\end{itemize}
+
+\begin{qbox}{总线也是设备吗？}
+	值得注意的是虽然已经有表示总线类型的 \lstinline{bus_type}，
+	总线也还是作为设备在设备驱动模型中表示，
+	一种总线可能是另一种总线的子设备，
+	例如挂在 PCI-E 总线下的 USB 总线.
+\end{qbox}
+
+\subsubsection{驱动}
+设备驱动的对象是 \lstinline{struct device_driver}.
+\index{d@\lstinline{struct device_driver}}
+一个驱动对象只能存在一个实例，
+也就是说驱动只有一份，一个驱动要管理与其关联的所有设备.
+所以 \lstinline{struct device_driver} 的 \lstinline{struct driver_private *p}
+要存储当前驱动所管理的所有设备.
+
+向驱动添加设备的机制是存储在 \lstinline{struct device_driver} 中的函数指针
+\lstinline{probe()}.\index{p@\lstinline{probe()}}
+这个函数以 \lstinline{struct device} 为参数，应该做这样几件事\cite{devicedriver}：
+\begin{itemize}
+	\item 确定设备确实存在；
+	\item 确定设备的型号和版本能被驱动支持；
+	\item 为设备需要的数据结构分配内存空间；
+	\item 初始化设备的硬件；
+	\item 最后把设备驱动和设备绑定在一起，填上各自的引用.
+\end{itemize}
+\index{d@\lstinline{struct device}}
+\begin{readsrcbox}{设备驱动模型}
+	总线的表示 \lstinline{struct bus_type}\index{d@\lstinline{struct bus_type}}
+	的定义在 \linuxsrc{include/linux/device/bus.h}.
+	实际的总线定义自己的 \lstinline{struct bus_type}，
+	如PCI的 \lstinline{struct pci_bus_type} 在 \linuxsrc{drivers/pci/pci-driver.c}.
+
+	设备的 \lstinline{struct device}\index{d@\lstinline{struct device}}
+	定义在 \linuxsrc{include/linux/driver.h}.
+	往往 \lstinline{struct device} 不单独使用，
+	特定总线的设备会把 \lstinline{struct device} 嵌入在一个有更多信息的结构体中.
+	比如PCI的 \lstinline{struct pci_dev} （\linuxsrc{include/linux/pci.h}）、
+	USB的 \lstinline{struct usb_dev} （\linuxsrc{include/linux/usb.h}）.
+
+	驱动的 \lstinline{struct device_driver} \index{d@\lstinline{struct device_driver}}
+	在 \linuxsrc{include/linux/device/driver.h}.
+	同样特定总线的驱动会把 \lstinline{struct device_driver} 嵌入到自己定义的结构体中.
+\end{readsrcbox}
 
 %%% Local Variables:
 %%% mode: latex
