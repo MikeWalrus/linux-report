@@ -1,0 +1,80 @@
+\section{设备管理}
+\subsection{设备驱动模型}
+计算机的CPU通过总线连接到设备，设备驱动程序通过总线与设备沟通，
+并给其他部分暴露出友好的接口.
+为总线、设备、驱动的相互操作而建立的程序框架在Linux内核中被称作设备驱动模型.
+\cite{devicemodel}\cite{bovet2005understanding}
+
+设备模型是由一系列相互联系的对象表示的.
+表示总线、设备、驱动等的对象之间相互连接，构成层次关系，以便相互操作.
+把它们连接起来的是 \lstinline{struct kobject}，\index{k@\lstinline{kobject}}
+一个嵌入其他结构体中提供功能的结构
+（嵌入的机制与 \ref{process identifiers} 中的 \lstinline{list_head} 一样），
+这其实是为了在C语言的简单结构下实现几个较复杂功能的一系列hack.
+
+\lstinline{kobject} 接口提供的主要功能有\cite{kobject}：
+\begin{itemize}
+	\item 引用计数. 因为设备驱动模型对象之间相互引用的关系较复杂，
+	      需要引用计数来确定对象的生命周期.
+	\item 在需要释放对象时，根据对象的类型调用自定义的释放函数.
+	\item 连接其他 \lstinline{kobject}.
+	      设备和设备等之间需要构成父子关系.
+	      不同对象之间还可以利用 \lstinline{kset} 和 \lstinline{subsys} 构成collection.
+	      collection 和父子关系构成了 \lstinline{kobject} 的层次结构.
+	\item 向用户空间提供接口.
+	      \lstinline{kobject} 在内核登记后就对应sysfs 虚拟文件系统
+	      （Arch Linux下挂载在 \lstinline{/sys}）下的一个目录.
+	      用户态程序可以通过该虚拟文件系统的接口访问内核内部的对象.
+	\item 事件的发送. 对象状态更改（如设备插拔）时可以向用户空间发送事件.
+\end{itemize}
+利用这些功能，内核就能构建一个灵活的设备驱动模型.
+
+\subsubsection{总线}
+总线由 \lstinline{struct bus_type} 表示.
+所有设备在逻辑上都连在某一个总线上，所有驱动都要依靠总线访问设备.
+因此总线的对象中的 \lstinline{struct subsys_private *p}
+有两个装着 \lstinline{kobject} 的 \lstinline{kset}，
+分别引用该总线上的\emph{设备}和\emph{驱动}.
+
+总线对象定义了总线普遍支持的操作，初始化具体的总线对象时要注册这些操作的函数指针，
+其中一些操作是做一些总线相关的工作再调用设备的回调函数.
+主要的操作有：
+\begin{itemize}
+	\item 在加入新的设备或驱动的时候调用的操作.
+	      \begin{itemize}
+		      \item 检查总线上的某个指定设备是否与指定驱动相匹配；
+		      \item probe，调用驱动的probe来把设备加入到驱动的管理中；
+		      \item ……
+	      \end{itemize}
+	\item 设备从总线上移除后的操作.
+	\item 为设备准备DMA的操作.
+	\item 管理设备电源、功耗的操作.
+\end{itemize}
+
+总线下的层次结构可以在sysfs 中看到.
+每一种总线都在 \lstinline{/sys/bus/} 下有自己的目录.
+目录下的 \lstinline{devices} 子目录是总线设备，
+为指向全局的 \lstinline{devices} 子系统中的设备对象的符号链接；
+\lstinline{drivers} 子目录下是总线的各个驱动.
+例如 Listing~\ref{lst: pcie sysfs} 所示.
+
+\begin{lstlisting}[caption={PCIE总线在sysfs中的结构}, label={lst: pcie sysfs}]
+/sys/bus/pci-express
+|-- devices
+|   |-- 0000:00:07.0:pcie001 -> ../../../../devices/pci...
+...
+|   `-- 0000:00:1c.0:pcie010 -> ...
+|-- drivers
+|   |-- aer
+|   |-- dpc
+|   |-- pciehp
+|   `-- pcie_pme
+|-- drivers_autoprobe
+|-- drivers_probe
+`-- uevent
+\end{lstlisting}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "linux_zh"
+%%% End:
