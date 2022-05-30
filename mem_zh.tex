@@ -230,6 +230,21 @@ __find_buddy_pfn(unsigned long page_pfn, unsigned int order)
 	它负责释放块，合并伙伴，更改空闲队列.
 \end{readsrcbox}
 
+\subsection{slab 分配器}
+使用伙伴系统的页面分配器是Linux内核的最底层的内存分配系统，
+在页面分配器的层次之上，还有更精细的内存分配机制.
+Linux内核采用slab分配器来为内核中常用的多种需要动态分配的对象管理内存.
+\index{slab allocator}
+在slab分配器中，同种对象连续地存储在一起，批量地分配内存，
+有状态的对象在释放和分配之间，状态仍缓存在原来的空间中.
+批量存储同样的对象有助于提高空间利用率、减小了内碎片化程度，
+而状态的缓存则避免了频繁初始化的开销.
+\cite{bonwick1994slab}
+\begin{qbox}{什么是对象？}
+	slab分配器管理的对象可以是存储状态的某种控制块，如进程控制块、inode等.
+	也可以是无状态的缓冲区等.\index{kernel object}
+\end{qbox}
+
 %%% Local Variables:
 %%% mode: latex
 %%% TeX-master: "linux_zh"
