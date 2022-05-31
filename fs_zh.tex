@@ -5,7 +5,7 @@ ext4\index{ext4}是近年许多GNU/Linux发行版的默认文件系统，于2008
 但功能也较为完善.
 
 \subsection{磁盘空间和文件的组织}
-\subsubsection{存储单元}
+\subsubsection{存储单元} \label{fs units}
 ext4中，磁盘的空间被分为几种单位：sector、block和block group.
 \begin{itemize}
 	\item sector 是由硬盘决定的扇区，一般为512 B.\index{sector}
@@ -26,7 +26,7 @@ ext4中，磁盘的空间被分为几种单位：sector、block和block group.
 所以应该定义好所有的数据的字节序.
 ext4中除日志外的数据均为little-endian.
 
-\subsection{文件的组织形式}
+\subsubsection{文件的组织形式}
 文件的数据部分存储在数据block中，而要想把数据block组织成一个文件，
 还需要一些辅助用的block.
 ext4的空间分配方式为索引式，也就是组成文件的块可以不连续，
@@ -83,6 +83,16 @@ ext4中，每一个文件的目录条目包含：
 在这种组织形式下，用名字访问文件的时间复杂度更低，
 只需用文件名的散列值作为索引在B树中搜索.
 
+\begin{qbox}{ext4文件系统与ext3、ext2有什么改进？}
+	ext4、ext3、ext2都是同一个系列的文件系统，
+	是对Minix的文件系统的改进和扩展（\textbf{E}xtented file system).
+	ext3文件系统增加了日志功能.
+	ext4文件系统则新增了一些功能，提升了一点性能，减少了一些限制.
+	上文就提到了几处ext4的改进之处：
+	新增了extent方式的文件组织形式、
+	在目录条目里面存储文件类型.
+\end{qbox}
+
 \begin{readsrcbox}{\lstinline{struct ext4_inode}}
 	ext4的主要代码在 \linuxsrc{fs/ext4} 目录中.
 	\linuxsrc{fs/ext4/ex4.h} 定义了ext4的inode在磁盘上的布局 \lstinline{struct ext4_inode}，和在内存中的表示形式 \lstinline{struct ext4_inode_info}.
@@ -99,6 +109,37 @@ ext4中，每一个文件的目录条目包含：
 	\lstinline{struct ext4_extent} 是记录extent位置的描述符，也是叶子节点.
 	\lstinline{struct ext4_extent_idx} 是非叶子节点.
 \end{readsrcbox}
+
+\subsubsection{磁盘上的物理布局}
+\ref{fs units} 中提到了几种存储单位，其中block是存储的基本单位，
+sector是与磁盘交流用的单位，而block group是文件系统整体组织的单位.
+整个磁盘被分为若干block group，
+动态分配空间时，总的原则是提高局部性，尽量把相关的结构分配在同一个block group中，
+因此每一个block group “麻雀虽小，五脏俱全”，都是相同的布局\cite{ext4high}：
+\begin{enumerate}
+	\item 一个整个文件系统的superblock. \index{superblock}
+	      每一个block group都存一个一样的文件系统控制块，
+	      减小文件系统关键信息丢失，完全不可恢复的概率.
+	\item Group 描述符表，所有block group 的描述符的数组. \index{group descriptor}
+	      也是重复地记录在每个group中.
+	      其后有一段保留的空间，用于在扩大文件系统时写更多的group 描述符.
+	\item 数据block的bitmap. 每一位对应一个data block是否空闲.
+	\item inode 的bitmap. 每一位记录inode是否空闲.
+	\item inode 表.
+	      固定数量的inode数组，所有inode（在使用的和空闲的）都在这里.
+	\item 数据block，间接索引block，extent tree block 等等.
+\end{enumerate}
+其中，group 描述符存储在group表中，每一个描述符对应一个group，
+存放就是其他几个控制用的数据结构的位置：
+inode和数据block的bitmap、inode表.
+因此，只要找到了group描述符表，就可以找到group描述符，
+进而确定其他所有控制信息的位置，访问整个文件系统的信息就找全了.
+这样也给了布局很大的灵活性，只有group 描述符表是固定的，
+其他的信息都可以不固定，这基础上group的组织可以更加灵活.\cite{ext4global}
+
+了解了磁盘上存放的控制信息，我们就知道了如何从逻辑上的号码访问物理上的位置，
+以及如何从物理地址推出逻辑上的结构.
+所要做的就是一层层查找表和描述符，计算一些偏移量，跟随若干次指针.
 
 %%% Local Variables:
 %%% mode: latex
