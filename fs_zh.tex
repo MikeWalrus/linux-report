@@ -83,6 +83,22 @@ ext4中，每一个文件的目录条目包含：
 在这种组织形式下，用名字访问文件的时间复杂度更低，
 只需用文件名的散列值作为索引在B树中搜索.
 
+\begin{readsrcbox}{\lstinline{struct ext4_inode}}
+	ext4的主要代码在 \linuxsrc{fs/ext4} 目录中.
+	\linuxsrc{fs/ext4/ex4.h} 定义了ext4的inode在磁盘上的布局 \lstinline{struct ext4_inode}，和在内存中的表示形式 \lstinline{struct ext4_inode_info}.
+
+	\lstinline{struc ext4_inode} 中的
+	\lstinline{__le32 i_block[EXT4_N_BLOCKS]}
+	就是存放上述有关索引数据的60个字节.
+
+	关于多层间接索引的inode的使用，
+	可参考的逻辑块号到索引块内偏移的代码：
+	\linuxsrc{fs/ext4/indirect.c} 中的 \lstinline{ext4_block_to_path()}.
+
+	Extent tree 的实现见 \linuxsrc{fs/ext4/ext4_extents.h} 等相关文件.
+	\lstinline{struct ext4_extent} 是记录extent位置的描述符，也是叶子节点.
+	\lstinline{struct ext4_extent_idx} 是非叶子节点.
+\end{readsrcbox}
 
 %%% Local Variables:
 %%% mode: latex
