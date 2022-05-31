@@ -130,6 +130,72 @@
 	同样特定总线的驱动会把 \lstinline{struct device_driver} 嵌入到自己定义的结构体中.
 \end{readsrcbox}
 
+\subsection{设备驱动过程}
+在 \ref{loading modules} 中，我们提到内核启动时，
+bootloader加载vmlinux镜像，内核代码开始运行.
+在开始启动init进程和运行init程序之间，
+内核首先做最核心的初始化，这其中就包括设备驱动模型的初始化.
+系统的总线等重要的设备的内核模块是静态连接到 vmlinux 内的，
+在设备驱动模型初始化完成后，
+这些模块的初始化程序会运行，注册对应的设备和总线类型，对总线进行初始化并设置中断.
+这样基本的驱动框架就建立好了，总线的设备驱动就可以对总线上的设备进行搜索.
+每当找到一个新的设备，首先初始化相关的对象，
+然后通过总线的 \lstinline{match()} 和驱动的 \lstinline{probe()}
+来遍历该总线下的所有驱动，如果发现匹配的驱动，则停止遍历，
+把设备和驱动绑定起来，这样设备模型的总线、设备、驱动就都联系起来了.
+
+现在再把用户空间的操作考虑进去.
+嵌有 \lstinline{kobject} 的设备、驱动对象
+在创建、删除的时候都会向用户空间传递 \lstinline{uevent}.
+用户空间的程序可以通过监听事件，并且通过 sysfs 对设备驱动模型进行操作，
+从而支持更灵活的设备使用方式，如热插拔.
+在用户态受限的环境下管理设备的好处还有稳定性和安全性的提高.
+同样在 \ref{loading modules} 中提过，
+包括 Arch Linux 在内的大多数x86发行版都使用systemd的udev\index{udev}
+系统来在用户态管理设备.
+udev负责监听 \lstinline{uevent} 事件，
+根据udev自带的和用户自定义的规则来做出对应的动作，
+管理 \lstinline{/dev} 下的 device node 文件，
+使其他程序可以通过 \lstinline{/dev} 下的文件与设备驱动程序交互.
+udev规则一般可以实现这样的一些功能\cite{WritingUdev}：
+\begin{itemize}
+	\item 加载、卸载驱动所在的模块（见 \ref{loading modules}）.
+	\item 在 \lstinline{/dev} 下为设备设置友好的名字.
+	\item 通知其他程序，传递设备的事件.
+	\item 进行系统管理，如挂载刚刚插入的硬盘.
+\end{itemize}
+
+使用udev的命令行工具 \lstinline{udevadm} 可以直观地看到设备状态变化产生的操作.
+比如运行 \lstinline{udevadm monitor --property} 命令，插入一个USB键盘，就可以看到udev根据规则和事件创建的device node.
+
+\begin{lstlisting}
+UDEV  [401515.997363] add      /devices/pci0 ... /usb3/.../event12 (input)
+ACTION=add
+DEVPATH=/devices/ ... /usb3/ ... /event12
+SUBSYSTEM=input
+DEVNAME=/dev/input/event12
+\end{lstlisting}
+
+\begin{notebox}
+	这里描述的过程进行了大量的简化，许多重要的细节都忽略了.
+	例如驱动可能在 \lstinline{probe()} 时还为准备好，
+	这时它可以要求推迟 \lstinline{probe()} 的操作.
+\end{notebox}
+
+\begin{readsrcbox}{\lstinline{driver_init()}}
+	初始化设备模型的函数入口为 \lstinline{driver_init()}，
+	位于 \linuxsrc{drivers/base/init.c}，
+	由 \linuxsrc{init/main.c} 中的 \lstinline{do_basic_setup()} 调用.
+	\linuxsrc{drivers/base} 目录为内核驱动的“core”部分，
+	负责硬件驱动模型内部的初始化和实现模型内部的功能等.
+
+	\linuxsrc{drivers/base/core.c} 中的 \lstinline{device_add()}
+	处理添加设备时的一系列操作，
+	调用 \lstinline{bus_probe_device(dev);} 来匹配驱动.
+	\lstinline{bus_probe_device()} 位于 \linuxsrc{drivers/base/dd.c}，
+	dd是“device/driver”的缩写，该文件中的函数处理设备和驱动之间的关系，
+	例如绑定、通信等.
+\end{readsrcbox}
 %%% Local Variables:
 %%% mode: latex
 %%% TeX-master: "linux_zh"

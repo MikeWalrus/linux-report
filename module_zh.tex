@@ -67,7 +67,7 @@ obj-$(CONFIG_BTRFS_FS) := btrfs.o
 make -C /lib/modules/`uname -r`/build M=$PWD
 \end{lstlisting}
 
-\subsection{内核模块的加载}
+\subsection{内核模块的加载} \label{loading modules}
 
 \begin{readsrcbox}{加载模块}
 	模块在内核中的表示见 \linuxsrc{include/linux/module.h}.
