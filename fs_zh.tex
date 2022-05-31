@@ -1,0 +1,90 @@
+\section{ext4文件系统}
+ext4\index{ext4}是近年许多GNU/Linux发行版的默认文件系统，于2008年在内核中稳定
+\footnote{\url{https://git.kernel.org/?p=linux/kernel/git/torvalds/linux-2.6.git;a=commit;h=03010a3350301baac2154fa66de925ae2981b7e3}}，
+是较为传统的日志文件系统，而不是BTRFS、ZFS那样的集成了卷管理器的文件系统，
+但功能也较为完善.
+
+\subsection{磁盘空间和文件的组织}
+\subsubsection{存储单元}
+ext4中，磁盘的空间被分为几种单位：sector、block和block group.
+\begin{itemize}
+	\item sector 是由硬盘决定的扇区，一般为512 B.\index{sector}
+	      较新（2010后）硬盘一般扇区大小为4096 B，
+	      可以工作在4 KB 的原生扇区大小模式下，
+	      也可以模拟512 B的扇区大小.
+	\item block 是2的整数次幂个连续扇区组成的单元，\index{block}
+	      一次传输较多数据可以减小磁盘操作开销.
+	      一般是4 KB，为了匹配常见的内存页面的大小.
+	      默认开启64位特性时，一个文件系统可以有 $2^{64}$ 个block.
+	\item block group 是连续的block，默认为32768个block. \index{block group}
+	      ext4会利用block group来提高局部性.
+\end{itemize}
+值得注意的是，在引用内存中的数据时，指针为按字节寻址的地址，
+也就是引用对象的第一个字节的字节数；
+而在外存中，存储单元为block，所以指针均为block number.
+还有一点，因为文件系统不应依赖CPU的类型，
+所以应该定义好所有的数据的字节序.
+ext4中除日志外的数据均为little-endian.
+
+\subsection{文件的组织形式}
+文件的数据部分存储在数据block中，而要想把数据block组织成一个文件，
+还需要一些辅助用的block.
+ext4的空间分配方式为索引式，也就是组成文件的块可以不连续，
+用inode来索引分配给文件的块.
+inode 其实就表示了文件的连续的逻辑块号到不连续的物理块号的一个映射，
+和页表在虚拟内存中的作用类似.
+
+inode中存有文件的元数据和一些能够索引到数据block的数据结构.
+普通的索引方式是直接或间接地存储每一个block的指针.
+直接索引的block有12个（\lstinline{EXT4_NDIR_BLOCK}），
+这12个指针的后面是3个指向间接索引块的指针，
+分别为一级、二级和三级间接索引.
+15个指针共有60个字节，存放在 \lstinline{i_block} 字段中.
+小的文件不需要间接索引块，而如果文件的数据块超过12个，
+就需要分配间接索引块，若一级间接索引仍不够再依次使用二级索引、三级索引.
+若block大小为4 KB，则每一个间接块可以存放32位指针
+（这里只能用32位的block nunber）的数量为 $4\times2^{10}/4 = 2^{10}$.
+故全部的二级索引块可以索引 $2^{10}\times2^{10}\times\SI{4}{\kilo\byte} = \SI{4}{\giga\byte}$.
+可以看出，只有数GB的文件才要用到三级间接索引.
+
+另外一种方式是extent.
+这是一种介于连续分配和索引之间的组织方式，可以弥补两者的不足.
+分配时，尽量分配连续的block，但是确实无法分配连续的空间时，
+也可以用分开的若干个连续区域来存储，每一个连续的空间称为一个extent. \index{extent}
+为了在连续的逻辑块号和这样的部分连续的物理块号之间建立索引，
+Linux采用的是extent tree，一种类似于B+ 树的索引结构.
+我们在数据结构课上学过，B+ 树是一种多分支的自平衡树，
+树中的元素都是叶子节点，非叶子节点只用于索引，
+extent tree 也是这样.
+每一个extent 记录起始块号和长度，树的叶子节点就是extent.
+索引方式下存储指针的位置，
+extent方式则存放extent树.
+extent树的每一个节点都有一个header描述这个节点可索引多少个extent，
+已经有多少extent等信息.
+如果inode的那60个字节可以放下一个header和所有extent，
+则不需更多块来存放节点.
+如果放不下，则要使用索引节点来间接指向extent.\cite{Ext4Extent}
+
+\lstinline{i_block} 的60个字节除了存放块索引和extent tree，\index{extent tree}
+还可以存放符号链接的目标路径，若存不下，还需分配更多空间.
+
+目录也是文件的一种，同样由inode索引.
+与其他文件不同的是，目录文件的数据块存放的是目录中每一个文件或目录的条目，
+ext4中，每一个文件的目录条目包含：
+\begin{itemize}
+	\item 文件名字符数组、文件名长度（不超过255）；
+	\item 文件的inode号；
+	\item 文件类型；
+\end{itemize}
+其中文件类型也在inode中存在，在目录条目复制一份的好处是，
+查看目录下所有文件类型时无需访问每一个文件的inode，
+只需要查看所有条目即可.\cite{ext4dynamic}
+目录条目除了顺序存储，还可以组织成更复杂但高效的htree（hashed btree）. \index{htree}
+在这种组织形式下，用名字访问文件的时间复杂度更低，
+只需用文件名的散列值作为索引在B树中搜索.
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "linux_zh"
+%%% End:
