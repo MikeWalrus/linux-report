@@ -4,6 +4,56 @@ ext4\index{ext4}是近年许多GNU/Linux发行版的默认文件系统，于2008
 是较为传统的日志文件系统，而不是BTRFS、ZFS那样的集成了卷管理器的文件系统，
 但功能也较为完善.
 
+\subsection{文件系统的系统调用}
+Linux支持的文件系统种类非常丰富.
+在处理多种文件系统共存和代码复用的问题上 Linux 内核采用了实现一个叫做
+“虚拟文件系统”的软件层的方法.
+
+虚拟文件系统把文件系统中共有的概念抽象出来，规定了统一的对象和接口，
+特定的文件实现自己的算法和数据结构来提供这些对象，例如：
+\begin{itemize}
+	\item Superblock. 整个文件系统的控制信息.
+	\item Inode. 文件的控制信息.
+	\item File. 已打开的文件的控制信息.
+	\item Dcache. 目录条目的缓存.
+\end{itemize}
+有了这些通用的对象，文件系统就可以把自己注册到Linux的虚拟文件系统中，
+虚拟文件系统对内通过调用这些对象的方法来完成特定文件系统中的操作，
+对外提供系统调用，使用户态程序能够用同样的方式操作不同的文件系统.
+文件系统的挂载和卸载是系统调用.
+
+常用的读写文件的系统调用包括但不限于：
+\begin{itemize}
+	\item \lstinline{open} 打开已有的文件或者在文件系统中创建一个新的文件并打开，
+	      返回文件描述符；
+	\item \lstinline{read} 从已打开的文件读出内容放入缓冲区；
+	\item \lstinline{write} 向已打开的文件中写入内容；
+	\item \lstinline{poll} 检查文件是否有活动，进程可以在没有活动时等待；
+	\item \lstinline{ioctl} 控制读写文件的方式；
+	\item \lstinline{mmap} 把文件映射到用户的虚拟内存空间中，
+	      从而通过读写内存的方式读写文件；
+\end{itemize}
+
+常用的管理文件的系统调用包括但不限于：
+\begin{itemize}
+	\item \lstinline{creat} 创建文件；
+	\item \lstinline{link} 创建硬链接，
+	      实现上一般是使不同的目录条目指向同一个inode；
+	\item \lstinline{unlink} 删除inode的某“名字”
+	      ，当没有其他引用时（如文件描述符、其他硬链接等），inode会被删除；
+	\item \lstinline{mkdir} 创建目录；
+	\item \lstinline{rmdir} 删除目录；
+	\item \lstinline{rename} 对inode “重命名”，可以把文件移动到别的目录；
+	\item \lstinline{stat} 从inode中读取信息；
+	\item \lstinline{chmod} 更改文件的权限.
+\end{itemize}
+
+\begin{qbox}{系统调用的文档在哪里查？}
+	Linux 的 man 手册的第二节是系统调用，
+	可以用命令 \lstinline{man 2 read} 查看 \lstinline{read(2)} 的相关内容.
+	在POSIX的标准中也可以查到系统调用的规定.
+\end{qbox}
+
 \subsection{磁盘空间和文件的组织}
 \subsubsection{存储单元} \label{fs units}
 ext4中，磁盘的空间被分为几种单位：sector、block和block group.
